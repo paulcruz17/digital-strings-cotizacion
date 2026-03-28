@@ -180,7 +180,7 @@ const DB = {
       nombre: "Flashmob Digital Strings 7",
       descripcion: "Sorpresa musical en vivo durante la cena",
       horas: 1,
-      precio: 3200000,
+      precio: 5600000,
       categoria: "show"
     }
   ],
