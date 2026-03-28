@@ -98,6 +98,14 @@ const DB = {
       categoria: "banda"
     },
     {
+      id: "co-gypsys",
+      nombre: "The Gypsys Digital Strings",
+      descripcion: "",
+      horas: 1,
+      precio: 2400000,
+      categoria: "show"
+    },
+    {
       id: "co-strings-band",
       nombre: "Strings Band",
       descripcion: "Guitarra, Batería, Bajo Eléctrico, Violín Eléctrico y Cantante",
@@ -160,19 +168,19 @@ const DB = {
       categoria: "musica"
     },
     {
-      id: "ce-flashmob",
-      nombre: "Flashmob Digital Strings",
+      id: "ce-flashmob-4",
+      nombre: "Flashmob Digital Strings 4",
       descripcion: "Sorpresa musical en vivo durante la cena",
       horas: 1,
-      precio: 1500000,
+      precio: 3200000,
       categoria: "show"
     },
     {
-      id: "ce-gypsys",
-      nombre: "The Gypsys Digital Strings",
-      descripcion: "",
+      id: "ce-flashmob-7",
+      nombre: "Flashmob Digital Strings 7",
+      descripcion: "Sorpresa musical en vivo durante la cena",
       horas: 1,
-      precio: 2400000,
+      precio: 3200000,
       categoria: "show"
     }
   ],
