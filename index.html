@@ -26,7 +26,7 @@
         <div class="event-couple" id="display-couple"></div>
         <div class="event-meta" id="display-meta"></div>
       </div>
-      <button class="btn-config" id="btn-open-config">EVENTO</button>
+      <button class="btn-config" id="btn-open-config">⚙ Evento</button>
     </div>
   </header>
 
@@ -35,9 +35,9 @@
     <div class="modal-box">
       <h2 class="modal-title">Datos del Evento</h2>
       <label>Novios</label>
-      <input type="text" id="cfg-couple" value="Novia & Novio" />
+      <input type="text" id="cfg-couple" value="" />
       <label>Ciudad</label>
-      <input type="text" id="cfg-city" value="Bogotá" />
+      <input type="text" id="cfg-city" value="" />
       <label>Fecha</label>
       <input type="date" id="cfg-date" value="" />
       <label>Hora inicio</label>
@@ -57,10 +57,10 @@
     </div>
   </div>
 
-  <!-- MAIN LAYOUT: CATALOG + CART -->
+  <!-- MAIN -->
   <main class="app-layout">
 
-    <!-- LEFT: CATALOG -->
+    <!-- LEFT -->
     <section class="moments-panel">
       <div class="moment-tabs">
         <button class="tab-btn active" data-moment="ceremonia">🎻 Ceremonia</button>
@@ -107,28 +107,33 @@
       </div>
     </section>
 
-    <!-- RIGHT: CART -->
+    <!-- RIGHT -->
     <aside class="cart-panel">
       <div class="cart-header">
         <h3>🛒 Carrito</h3>
         <button class="btn-clear" id="btn-clear-cart">Limpiar todo</button>
       </div>
+
       <div class="cart-tip">
-        Agrega ítems y luego <strong>arrastra al plan</strong> correspondiente abajo.
-        También puedes cambiar el <strong>momento</strong> de cada ítem.
+        Agrega ítems y luego <strong>arrastra al plan</strong>.
       </div>
+
       <div class="cart-items" id="cart-items">
         <div class="cart-empty">Agrega servicios al carrito</div>
       </div>
-      
-      <div class="discount-row">
-        <label>Descuento</label>
-        <div class="discount-input-wrap">
-          <input type="number" id="discount-input" value="4" min="0" max="100" step="0.5" />
-          <span>%</span>
-        </div>
+
+      <!-- 🔥 NUEVO -->
+      <div class="cart-subtotal">
+        <span>Subtotal</span>
+        <span id="cart-subtotal-val">$0</span>
       </div>
-      <button class="btn-primary btn-full" id="btn-generate">Generar Cotización</button>
+
+      <!-- 🔥 CONTROLADO POR JS -->
+      <div id="discount-block"></div>
+
+      <button class="btn-primary btn-full" id="btn-generate">
+        Generar Cotización
+      </button>
     </aside>
 
   </main>
@@ -136,25 +141,26 @@
   <!-- PLAN BUILDER -->
   <section class="plan-builder-section">
     <div class="plan-builder-header">
-      <div class="plan-builder-title-block">
+      <div>
         <h2 class="plan-builder-title">Constructor de Planes</h2>
-        <p class="plan-builder-subtitle">Arrastra los ítems del carrito a cada plan.</p>
+        <p class="plan-builder-subtitle">
+          Arrastra ítems del carrito a cada plan y crea propuestas personalizadas.
+        </p>
       </div>
       <button class="btn-secondary btn-sm" id="btn-clear-plans">Limpiar planes</button>
     </div>
-    <div class="plan-builder" id="plan-builder">
-      <!-- rendered by JS -->
-    </div>
+
+    <div class="plan-builder" id="plan-builder"></div>
   </section>
 
-  <!-- QUOTE OUTPUT -->
+  <!-- QUOTE -->
   <section class="quote-output" id="quote-output" style="display:none;">
     <div class="quote-inner">
       <div class="quote-top-bar">
         <h2>COTIZACIÓN FINAL</h2>
         <div class="quote-actions">
           <button class="btn-secondary" id="btn-print">🖨 Imprimir / PDF</button>
-          <button class="btn-secondary" id="btn-close-quote">✕ Cerrar</button>
+          <button class="btn-secondary" id="btn-close-quote">✕</button>
         </div>
       </div>
       <div id="quote-content"></div>
