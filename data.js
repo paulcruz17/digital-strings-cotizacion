@@ -261,10 +261,22 @@ const DB = {
       precio: 3600000
     },
     {
-      id: "il-polvora",
-      nombre: "Pólvora Fría",
+      id: "il-polvora-2",
+      nombre: "Pólvora Fría x 2",
       descripcion: "Efectos de pólvora fría para momentos especiales (x2)",
       precio: 300000
+    },
+    {
+      id: "il-polvora-4",
+      nombre: "Pólvora Fría x 4",
+      descripcion: "Efectos de pólvora fría para momentos especiales (x2)",
+      precio: 500000
+    },
+    {
+      id: "il-polvora-6",
+      nombre: "Pólvora Fría x 6",
+      descripcion: "Efectos de pólvora fría para momentos especiales (x2)",
+      precio: 750000
     }
   ]
 };
