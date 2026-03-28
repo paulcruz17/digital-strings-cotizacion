@@ -1,10 +1,9 @@
 // ============================================================
-//  DIGITAL STRINGS — APP LOGIC v7
-//  - Carrito: solo lista de ítems, sin subtotal/descuento
-//  - Pólvora: cantidad independiente por plan, saltos de 2 en 2
-//  - Precio pólvora escalonado: 2 disp = $150k c/u, 4+ = $125k c/u
-//  - Descuento sugerido se auto-rellena en el input (editable)
-//  - Reglas de descuento por categorías (momentos) + monto mínimo
+//  DIGITAL STRINGS — APP LOGIC v8
+//  - Plan header: muestra SUBTOTAL siempre + TOTAL CON DCTO si aplica
+//  - Pólvora: saltos de 2 en 2, precio escalonado
+//  - Descuento sugerido auto-rellena el input (editable)
+//  - Reglas OR: monto O categorías activan el descuento
 //  - Footer compacto igual en ambas páginas
 // ============================================================
 
@@ -18,19 +17,18 @@ const state = {
     end: "",
     ceremonyType: ""
   },
-  cart: {},   // { id: { moment } }
-  // Pólvora: cantidad por plan (basico, elite, premium) + catálogo (global para card)
+  cart: {},
   polvoraQty: { catalogo: 2, basico: 2, elite: 4, premium: 6 },
   plans: { basico: new Set(), elite: new Set(), premium: new Set() },
   discounts: { basico: 0, elite: 0, premium: 0 },
-  discountManual: { basico: false, elite: false, premium: false }, // true cuando el usuario editó a mano
+  discountManual: { basico: false, elite: false, premium: false },
   activeMoment: "ceremonia",
   drag: { id: null, sourcePlan: null }
 };
 
 const POLVORA_ID = "il-polvora";
-const POLVORA_UNIT_PRICE      = 150000; // precio c/u para 2 disparos
-const POLVORA_UNIT_PRICE_BULK = 125000; // precio c/u para 4+ disparos
+const POLVORA_UNIT_PRICE      = 150000;
+const POLVORA_UNIT_PRICE_BULK = 125000;
 
 // ── UTILS ──────────────────────────────────────────────────
 function fmt(n) {
@@ -67,8 +65,6 @@ function formatTime(t) {
 }
 
 // ── PRECIO PÓLVORA (ESCALONADO) ────────────────────────────
-// 2 disparos  → $150.000 c/u = $300.000 total
-// 4+ disparos → $125.000 c/u  (solo números pares)
 function getPolvoraPrice(planKey) {
   const qty = state.polvoraQty[planKey] || 2;
   if (qty <= 2) return POLVORA_UNIT_PRICE * qty;
@@ -82,13 +78,13 @@ function getItemPrice(id, planKey) {
 }
 
 // ── AUTO-DISCOUNT LOGIC ────────────────────────────────────
-// Categorías = momentos válidos cubiertos con al menos 1 ítem en el plan
-// Condición: se cumple con monto OR categorías (lo que llegue primero)
-//   3%  → monto ≥ $6M  O  ítems en ≥ 4 categorías distintas
-//   5%  → monto ≥ $7M  O  ítems en ≥ 5 categorías distintas
-//  10%  → monto ≥ $11M O  ítems en las 6 categorías
-//  15%  → monto ≥ $15M (solo monto)
-//  18%  → monto ≥ $25M (solo monto)
+// Reglas (OR): se cumple con monto O con número de categorías
+//   3%  → subtotal ≥ $6M   O  ítems en ≥ 4 categorías
+//   5%  → subtotal ≥ $7M   O  ítems en ≥ 5 categorías
+//  10%  → subtotal ≥ $11M  O  ítems en las 6 categorías
+//  15%  → subtotal ≥ $15M  (solo monto)
+//  18%  → subtotal ≥ $25M  (solo monto)
+// Categorías válidas: ceremonia, coctel, protocolo, cena, fiesta, iluminacion
 
 const VALID_MOMENTS = ["ceremonia","coctel","protocolo","cena","fiesta","iluminacion"];
 
@@ -104,11 +100,11 @@ function calcAutoDiscount(planKey) {
 
   const cat = coveredMoments.size;
 
-  if (sub >= 25000000)                          return { pct: 18, reason: "Subtotal ≥ $25M" };
-  if (sub >= 15000000)                          return { pct: 15, reason: "Subtotal ≥ $15M" };
-  if (sub >= 11000000 || cat >= 6)              return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
-  if (sub >= 7000000  || cat >= 5)              return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
-  if (sub >= 6000000  || cat >= 4)              return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
+  if (sub >= 25000000)             return { pct: 18, reason: "Subtotal ≥ $25M" };
+  if (sub >= 15000000)             return { pct: 15, reason: "Subtotal ≥ $15M" };
+  if (sub >= 11000000 || cat >= 6) return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
+  if (sub >= 7000000  || cat >= 5) return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
+  if (sub >= 6000000  || cat >= 4) return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
 
   return { pct: 0, reason: "Sin descuento aún" };
 }
@@ -118,12 +114,6 @@ function planSubtotal(planKey) {
   let sum = 0;
   state.plans[planKey].forEach(id => { sum += getItemPrice(id, planKey); });
   return sum;
-}
-
-function planFinalTotal(planKey) {
-  const sub = planSubtotal(planKey);
-  const dcto = state.discounts[planKey] || 0;
-  return Math.round(sub * (1 - dcto / 100));
 }
 
 // ── RENDER GRIDS ────────────────────────────────────────────
@@ -155,7 +145,6 @@ function renderGrid(moment) {
     const btnText = item.siempre ? "Siempre incluido" : inCart ? "✓ En carrito" : "+ Agregar";
     const btnClass = item.siempre ? "btn-add disabled-btn" : inCart ? "btn-add in-cart-btn" : "btn-add";
 
-    // Pólvora: qty control solo en catálogo (referencia visual), saltos de 2 en 2
     let polvoraExtra = "";
     if (item.id === POLVORA_ID) {
       polvoraExtra = `
@@ -188,7 +177,6 @@ function renderAllGrids() {
   MOMENT_ORDER.forEach(m => renderGrid(m));
 }
 
-// Qty de pólvora en catálogo — saltos de 2 en 2, mínimo 2
 function changeCatalogoQty(delta) {
   state.polvoraQty.catalogo = Math.max(2, state.polvoraQty.catalogo + delta * 2);
   const qEl = document.getElementById("cat-polvora-qty");
@@ -210,7 +198,7 @@ function toggleCart(id, originMoment) {
   renderPlanBuilder();
 }
 
-// ── RENDER CART (solo lista, sin subtotal/descuento) ────────
+// ── RENDER CART ─────────────────────────────────────────────
 function renderCart() {
   const container = document.getElementById("cart-items");
   const ids = Object.keys(state.cart);
@@ -308,24 +296,43 @@ function renderPlanBuilder() {
 
     const sub = planSubtotal(planKey);
     const dcto = state.discounts[planKey] || 0;
-    const finalTotal = Math.round(sub * (1 - dcto / 100));
+    const totalConDcto = Math.round(sub * (1 - dcto / 100));
 
-    // Texto del hint según estado
+    // Texto del hint
     let hintText = "";
     if (sub > 0) {
       if (state.discountManual[planKey]) {
-        hintText = `Sugerido: ${autoD.pct}% · ${fmt(sub)}`;
+        hintText = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
       } else if (autoD.pct > 0) {
-        hintText = `✓ Dcto. auto ${autoD.pct}% aplicado · ${fmt(sub)}`;
+        hintText = `✓ Dcto. auto ${autoD.pct}% · ${autoD.reason}`;
       } else {
-        hintText = `Sin dcto. aún · ${fmt(sub)}`;
+        hintText = `Sin dcto. aún · ${autoD.reason}`;
       }
     }
+
+    // Bloque de precios:
+    // - Siempre muestra el SUBTOTAL (precio sin descuento)
+    // - Si hay descuento > 0, también muestra el TOTAL CON DESCUENTO debajo
+    const preciosHTML = sub > 0 ? `
+      <div class="plan-precio-subtotal">
+        <span class="plan-precio-label">Subtotal</span>
+        <span class="plan-precio-val" id="subtotal-${planKey}">${fmt(sub)}</span>
+      </div>
+      ${dcto > 0 ? `
+      <div class="plan-precio-total">
+        <span class="plan-precio-label">Total c/ ${dcto}% dcto.</span>
+        <span class="plan-precio-val plan-precio-total-val" id="total-${planKey}">${fmt(totalConDcto)}</span>
+      </div>` : `
+      <div class="plan-precio-total" id="total-wrap-${planKey}" style="display:none">
+        <span class="plan-precio-label"></span>
+        <span class="plan-precio-val plan-precio-total-val" id="total-${planKey}"></span>
+      </div>`}
+    ` : "";
 
     col.innerHTML = `
       <div class="plan-col-head plan-head-${planKey}">
         <div class="plan-col-title">${PLAN_LABELS[planKey]}</div>
-        <div class="plan-col-total">${fmt(finalTotal)}</div>
+        ${preciosHTML}
         <div class="plan-discount-row">
           <span class="plan-dcto-label">Dcto:</span>
           <div class="plan-dcto-wrap">
@@ -360,7 +367,6 @@ function renderPlanBuilder() {
       pill.dataset.id = id;
       pill.dataset.plan = planKey;
 
-      // Pólvora: control qty por plan, saltos de 2 en 2
       const polvoraCtrl = id === POLVORA_ID ? `
         <div class="pill-polvora-ctrl">
           <button class="polvora-btn polvora-btn-sm" onclick="changePlanPolvoraQty('${planKey}',-1);event.stopPropagation()">−</button>
@@ -421,19 +427,8 @@ function renderPlanBuilder() {
   });
 }
 
-// Cambiar qty de pólvora por plan — saltos de 2 en 2, precio escalonado
-function changePlanPolvoraQty(planKey, delta) {
-  state.polvoraQty[planKey] = Math.max(2, (state.polvoraQty[planKey] || 2) + delta * 2);
-
-  // Actualizar display de cantidad
-  const qEl = document.getElementById(`polvora-qty-${planKey}`);
-  if (qEl) qEl.textContent = state.polvoraQty[planKey];
-
-  // Actualizar precio en la pill
-  const pEl = document.getElementById(`polvora-price-${planKey}`);
-  if (pEl) pEl.textContent = fmt(getPolvoraPrice(planKey));
-
-  // Recalcular descuento sugerido y totales
+// ── RECALCULAR HEADER DE UN PLAN SIN RE-RENDER COMPLETO ────
+function recalcPlanHeader(planKey) {
   const autoD = calcAutoDiscount(planKey);
   if (!state.discountManual[planKey]) {
     state.discounts[planKey] = autoD.pct;
@@ -443,36 +438,79 @@ function changePlanPolvoraQty(planKey, delta) {
 
   const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey] || 0;
-  const finalTotal = Math.round(sub * (1 - dcto / 100));
+  const totalConDcto = Math.round(sub * (1 - dcto / 100));
 
-  const totalEl = document.querySelector(`.plan-col-${planKey} .plan-col-total`);
-  const hintEl  = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
-  if (totalEl) totalEl.textContent = fmt(finalTotal);
+  // Actualizar subtotal
+  const subEl = document.getElementById(`subtotal-${planKey}`);
+  if (subEl) subEl.textContent = fmt(sub);
+
+  // Actualizar total con descuento
+  const totalEl = document.getElementById(`total-${planKey}`);
+  const totalWrap = document.getElementById(`total-wrap-${planKey}`);
+  if (totalEl) {
+    if (dcto > 0) {
+      totalEl.textContent = fmt(totalConDcto);
+      const labelEl = totalEl.previousElementSibling;
+      if (labelEl) labelEl.textContent = `Total c/ ${dcto}% dcto.`;
+      if (totalWrap) totalWrap.style.display = "";
+    } else {
+      if (totalWrap) totalWrap.style.display = "none";
+    }
+  }
+
+  // Actualizar hint
+  const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (hintEl) {
     if (state.discountManual[planKey]) {
-      hintEl.textContent = `Sugerido: ${autoD.pct}% · ${fmt(sub)}`;
+      hintEl.textContent = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
     } else if (autoD.pct > 0) {
-      hintEl.textContent = `✓ Dcto. auto ${autoD.pct}% aplicado · ${fmt(sub)}`;
+      hintEl.textContent = `✓ Dcto. auto ${autoD.pct}% · ${autoD.reason}`;
     } else {
-      hintEl.textContent = `Sin dcto. aún · ${fmt(sub)}`;
+      hintEl.textContent = `Sin dcto. aún · ${autoD.reason}`;
     }
   }
 }
 
-// El usuario editó el input manualmente → marcar como manual y recalcular total
+// ── CAMBIAR QTY PÓLVORA POR PLAN ───────────────────────────
+function changePlanPolvoraQty(planKey, delta) {
+  state.polvoraQty[planKey] = Math.max(2, (state.polvoraQty[planKey] || 2) + delta * 2);
+
+  const qEl = document.getElementById(`polvora-qty-${planKey}`);
+  if (qEl) qEl.textContent = state.polvoraQty[planKey];
+
+  const pEl = document.getElementById(`polvora-price-${planKey}`);
+  if (pEl) pEl.textContent = fmt(getPolvoraPrice(planKey));
+
+  recalcPlanHeader(planKey);
+}
+
+// ── SET DESCUENTO MANUAL ────────────────────────────────────
 function setPlanDiscount(planKey, value) {
   state.discounts[planKey] = parseFloat(value) || 0;
   state.discountManual[planKey] = true;
 
   const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey];
-  const finalTotal = Math.round(sub * (1 - dcto / 100));
+  const totalConDcto = Math.round(sub * (1 - dcto / 100));
   const autoD = calcAutoDiscount(planKey);
 
-  const totalEl = document.querySelector(`.plan-col-${planKey} .plan-col-total`);
-  const hintEl  = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
-  if (totalEl) totalEl.textContent = fmt(finalTotal);
-  if (hintEl)  hintEl.textContent  = `Sugerido: ${autoD.pct}% · ${fmt(sub)}`;
+  // Actualizar total con descuento
+  const totalEl = document.getElementById(`total-${planKey}`);
+  const totalWrap = document.getElementById(`total-wrap-${planKey}`);
+  if (totalEl) {
+    if (dcto > 0) {
+      totalEl.textContent = fmt(totalConDcto);
+      const labelEl = totalEl.previousElementSibling;
+      if (labelEl) labelEl.textContent = `Total c/ ${dcto}% dcto.`;
+      if (totalWrap) totalWrap.style.display = "";
+    } else {
+      if (totalWrap) totalWrap.style.display = "none";
+    }
+  }
+
+  // Actualizar hint
+  const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
+  if (hintEl) hintEl.textContent = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
 }
 
 function removeFromPlan(planKey, id) {
@@ -571,7 +609,6 @@ function generateQuote() {
 
   const ev = state.event;
 
-  // ── PÁGINA 1: Header + Planes + Footer ─────────────
   let html = `<div class="quote-page quote-page-1">`;
 
   html += `
@@ -626,9 +663,7 @@ function generateQuote() {
       mItems.forEach(({ def, price, id }) => {
         const hrs = def.horas ? `${def.horas}h` : (def.duracion || "");
         const qty = state.polvoraQty[key] || 2;
-        const nameDisplay = id === POLVORA_ID
-          ? `${def.nombre} x${qty}`
-          : def.nombre;
+        const nameDisplay = id === POLVORA_ID ? `${def.nombre} x${qty}` : def.nombre;
         html += `<div class="plan-item-row">
           <span class="pi-name">${nameDisplay}</span>
           <span class="pi-hrs">${hrs}</span>
@@ -650,11 +685,10 @@ function generateQuote() {
     </div>`;
   });
 
-  html += `</div>`; // end quote-plans
+  html += `</div>`;
   html += sharedFooterHTML();
-  html += `</div>`; // end page 1
+  html += `</div>`;
 
-  // ── PÁGINA 2: Consideraciones + Footer ─────────────
   html += `<div class="quote-page quote-page-2">`;
   html += `
     <div class="considerations-block">
@@ -673,7 +707,7 @@ function generateQuote() {
     </div>
   `;
   html += sharedFooterHTML();
-  html += `</div>`; // end page 2
+  html += `</div>`;
 
   document.getElementById("quote-content").innerHTML = html;
   document.getElementById("quote-output").style.display = "block";
