@@ -288,16 +288,16 @@ const MOMENT_LABELS = {
   protocolo:   "Protocolo",
   cena:        "Cena",
   fiesta:      "Fiesta",
-  iluminacion: "Iluminación"
+  iluminacion: "Audio e Iluminación"
 };
 
 const MOMENT_ICONS = {
   ceremonia:   "🎻",
   coctel:      "🥂",
-  protocolo:   "🎧",
+  protocolo:   "🎩",
   cena:        "🍽",
   fiesta:      "🎉",
-  iluminacion: "💡"
+  iluminacion: "🎧💡"
 };
 
-const MOMENT_ORDER = ["ceremonia","coctel","protocolo","cena","fiesta","iluminacion"];
+const MOMENT_ORDER = ["ceremonia","coctel","protocolo","cena","fiesta","audio e iluminacion"];

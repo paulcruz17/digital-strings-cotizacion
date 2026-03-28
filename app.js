@@ -1,12 +1,3 @@
-// ============================================================
-//  DIGITAL STRINGS — APP LOGIC v6
-//  - Carrito: solo lista de ítems, sin subtotal/descuento
-//  - Pólvora: cantidad independiente por plan, saltos de 2 en 2
-//  - Precio pólvora escalonado: 2 disp = $150k c/u, 4+ = $125k c/u
-//  - Descuento sugerido se auto-rellena en el input (editable)
-//  - Footer compacto igual en ambas páginas
-// ============================================================
-
 // ── STATE ──────────────────────────────────────────────────
 const state = {
   event: {
