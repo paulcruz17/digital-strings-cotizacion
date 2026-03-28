@@ -300,4 +300,4 @@ const MOMENT_ICONS = {
   iluminacion: "🎧💡"
 };
 
-const MOMENT_ORDER = ["ceremonia","coctel","protocolo","cena","fiesta","audio e iluminacion"];
+const MOMENT_ORDER = ["ceremonia","coctel","protocolo","cena","fiesta","iluminacion"];
