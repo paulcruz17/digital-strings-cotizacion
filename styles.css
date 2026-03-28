@@ -552,8 +552,8 @@ body {
   justify-content: center; 
 }
 .qr-img {
-  width: 80px;
-  height: 80px;
+  width: 180px;
+  height: 180px;
   object-fit: contain;
 }
 .qf2-right { flex: 1; text-align: right; }
