@@ -1,7 +1,8 @@
 // ============================================================
-//  DIGITAL STRINGS — APP LOGIC v3
-//  - Descuento independiente por plan
-//  - Quote imprime en 2 páginas: planes / consideraciones
+//  DIGITAL STRINGS — APP LOGIC v4
+//  - Pólvora con cantidad editable
+//  - Descuento automático por reglas (editable manualmente)
+//  - Print: @page margin 0 para eliminar URL/headers
 // ============================================================
 
 // ── STATE ──────────────────────────────────────────────────
@@ -14,12 +15,17 @@ const state = {
     end: "",
     ceremonyType: ""
   },
-  cart: {},
+  cart: {},           // { id: { moment, qty? } }
+  polvoraQty: 2,      // disparos de pólvora (precio unitario 150.000)
   plans: { basico: new Set(), elite: new Set(), premium: new Set() },
-  discounts: { basico: 8, elite: 8, premium: 8 },
+  discounts: { basico: 0, elite: 0, premium: 0 },
+  manualDiscount: null, // null = usar auto-calculado, número = override manual
   activeMoment: "ceremonia",
   drag: { id: null, sourcePlan: null }
 };
+
+const POLVORA_ID = "il-polvora";
+const POLVORA_UNIT_PRICE = 150000; // precio por disparo
 
 // ── UTILS ──────────────────────────────────────────────────
 function fmt(n) {
@@ -55,12 +61,21 @@ function formatTime(t) {
   return `${disp}:${m}${ampm}`;
 }
 
+// ── PRECIO PÓLVORA ─────────────────────────────────────────
+function getPolvoraPrice() {
+  return POLVORA_UNIT_PRICE * state.polvoraQty;
+}
+
+function getItemPrice(id) {
+  if (id === POLVORA_ID) return getPolvoraPrice();
+  const def = getItemDef(id);
+  return def?.precio || 0;
+}
+
+// ── PLAN TOTALS ────────────────────────────────────────────
 function planSubtotal(planKey) {
   let sum = 0;
-  state.plans[planKey].forEach(id => {
-    const def = getItemDef(id);
-    if (def && def.precio) sum += def.precio;
-  });
+  state.plans[planKey].forEach(id => { sum += getItemPrice(id); });
   return sum;
 }
 
@@ -68,6 +83,88 @@ function planFinalTotal(planKey) {
   const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey] || 0;
   return Math.round(sub * (1 - dcto / 100));
+}
+
+// ── CART SUBTOTAL (todos los ítems) ────────────────────────
+function cartSubtotal() {
+  let sum = 0;
+  Object.keys(state.cart).forEach(id => { sum += getItemPrice(id); });
+  return sum;
+}
+
+// ── AUTO-DISCOUNT LOGIC ────────────────────────────────────
+// Momentos (categorías): ceremonia, coctel, protocolo, cena, fiesta, iluminacion
+const DISCOUNT_RULES = [
+  { pct: 18, minAmount: 25000000, minCategories: null, label: "Subtotal ≥ $25M" },
+  { pct: 15, minAmount: 15000000, minCategories: null, label: "Subtotal ≥ $15M" },
+  { pct: 10, minAmount: 11000000, minCategories: 6,    label: "6 categorías · Subtotal ≥ $11M" },
+  { pct:  5, minAmount:  7000000, minCategories: 5,    label: "5 categorías · Subtotal ≥ $7M" },
+  { pct:  3, minAmount:  6000000, minCategories: 4,    label: "4 categorías · Subtotal ≥ $6M" },
+];
+
+function calcAutoDiscount() {
+  const sub = cartSubtotal();
+  // Count distinct effective moments in cart
+  const moments = new Set(
+    Object.keys(state.cart).map(id => getEffectiveMoment(id))
+  );
+  const catCount = moments.size;
+
+  for (const rule of DISCOUNT_RULES) {
+    const amountOk = sub >= rule.minAmount;
+    const catOk = rule.minCategories === null || catCount >= rule.minCategories;
+    if (amountOk && catOk) return { pct: rule.pct, reason: rule.label };
+  }
+  return { pct: 0, reason: "Sin descuento aplicado aún" };
+}
+
+function getEffectiveCartDiscount() {
+  if (state.manualDiscount !== null) return state.manualDiscount;
+  return calcAutoDiscount().pct;
+}
+
+// ── RENDER DISCOUNT BLOCK ──────────────────────────────────
+function renderDiscountBlock() {
+  const block = document.getElementById("discount-block");
+  if (!block) return;
+
+  const auto = calcAutoDiscount();
+  const effective = getEffectiveCartDiscount();
+  const isManual = state.manualDiscount !== null;
+
+  block.innerHTML = `
+    <div class="discount-auto-badge">
+      <span class="discount-rule-label">Dcto. sugerido</span>
+      <span class="discount-rule-val">${auto.pct}%</span>
+    </div>
+    <div class="discount-rule-reason">${auto.reason}</div>
+    <div class="discount-manual-row">
+      <span class="discount-manual-label">${isManual ? "Dcto. manual ✏️" : "Ajustar manualmente"}</span>
+      <div class="discount-input-wrap">
+        <input
+          type="number" id="discount-input"
+          value="${effective}"
+          min="0" max="100" step="0.5"
+          oninput="setManualDiscount(this.value)"
+        />
+        <span>%</span>
+      </div>
+    </div>
+    ${isManual ? `<div style="text-align:right;margin-top:4px;">
+      <button onclick="resetAutoDiscount()" style="font-size:0.55rem;color:var(--accent);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:var(--font-main);">← Volver al automático (${auto.pct}%)</button>
+    </div>` : ""}
+  `;
+}
+
+function setManualDiscount(val) {
+  const n = parseFloat(val);
+  state.manualDiscount = isNaN(n) ? null : n;
+  renderDiscountBlock();
+}
+
+function resetAutoDiscount() {
+  state.manualDiscount = null;
+  renderDiscountBlock();
 }
 
 // ── RENDER GRIDS ────────────────────────────────────────────
@@ -84,9 +181,14 @@ function renderGrid(moment) {
     const card = document.createElement("div");
     card.className = `item-card${inCart ? " in-cart" : ""}`;
 
+    // Pólvora: precio dinámico
+    const displayPrice = item.id === POLVORA_ID
+      ? fmt(getPolvoraPrice())
+      : fmt(item.precio);
+
     const priceDisplay = item.siempre
       ? '<span class="item-price">Incluido</span>'
-      : `<span class="item-price">${fmt(item.precio)}</span>`;
+      : `<span class="item-price" id="price-display-${item.id}">${displayPrice}</span>`;
 
     const durDisplay = item.duracion
       ? item.duracion
@@ -95,10 +197,26 @@ function renderGrid(moment) {
     const btnText = item.siempre ? "Siempre incluido" : inCart ? "✓ En carrito" : "+ Agregar";
     const btnClass = item.siempre ? "btn-add disabled-btn" : inCart ? "btn-add in-cart-btn" : "btn-add";
 
+    // Extra: pólvora quantity control en la card
+    let polvoraExtra = "";
+    if (item.id === POLVORA_ID) {
+      polvoraExtra = `
+        <div class="polvora-qty-row">
+          <span class="polvora-qty-label">Disparos:</span>
+          <div class="polvora-qty-ctrl">
+            <button class="polvora-btn" onclick="changePolvoraQty(-1)">−</button>
+            <span class="polvora-qty-val" id="polvora-qty-display">${state.polvoraQty}</span>
+            <button class="polvora-btn" onclick="changePolvoraQty(1)">+</button>
+          </div>
+        </div>
+      `;
+    }
+
     card.innerHTML = `
       <div class="item-nombre">${item.nombre}</div>
       <div class="item-desc">${item.descripcion}</div>
       ${durDisplay ? `<div class="item-duracion">⏱ ${durDisplay}</div>` : ""}
+      ${polvoraExtra}
       <div class="item-footer">
         ${priceDisplay}
         <button class="${btnClass}" ${item.siempre ? "disabled" : ""} onclick="toggleCart('${item.id}','${moment}')">${btnText}</button>
@@ -112,6 +230,22 @@ function renderAllGrids() {
   MOMENT_ORDER.forEach(m => renderGrid(m));
 }
 
+// ── PÓLVORA QUANTITY ───────────────────────────────────────
+function changePolvoraQty(delta) {
+  state.polvoraQty = Math.max(1, state.polvoraQty + delta);
+  // Update all displays
+  document.querySelectorAll("#polvora-qty-display").forEach(el => {
+    el.textContent = state.polvoraQty;
+  });
+  document.querySelectorAll(`#price-display-${POLVORA_ID}`).forEach(el => {
+    el.textContent = fmt(getPolvoraPrice());
+  });
+  // Update cart price & pill price
+  renderCart();
+  renderPlanBuilder();
+  renderDiscountBlock();
+}
+
 // ── CART TOGGLE ─────────────────────────────────────────────
 function toggleCart(id, originMoment) {
   if (state.cart[id]) {
@@ -123,6 +257,7 @@ function toggleCart(id, originMoment) {
   renderAllGrids();
   renderCart();
   renderPlanBuilder();
+  renderDiscountBlock();
 }
 
 // ── RENDER CART PANEL ───────────────────────────────────────
@@ -134,6 +269,7 @@ function renderCart() {
   if (ids.length === 0) {
     container.innerHTML = '<div class="cart-empty">Agrega servicios al carrito</div>';
     subtotalEl.textContent = "$0";
+    renderDiscountBlock();
     return;
   }
 
@@ -158,7 +294,8 @@ function renderCart() {
     gids.forEach(id => {
       const def = getItemDef(id);
       if (!def) return;
-      total += def.precio || 0;
+      const price = getItemPrice(id);
+      total += price;
 
       const div = document.createElement("div");
       div.className = "cart-item";
@@ -169,10 +306,15 @@ function renderCart() {
         `<option value="${m}" ${getEffectiveMoment(id) === m ? "selected" : ""}>${MOMENT_LABELS[m]}</option>`
       ).join("");
 
+      // Pólvora: mostrar cantidad en el carrito
+      const nameDisplay = id === POLVORA_ID
+        ? `${def.nombre} (x${state.polvoraQty})`
+        : def.nombre;
+
       div.innerHTML = `
         <div class="cart-item-info">
-          <div class="cart-item-name">${def.nombre}</div>
-          <div class="cart-item-price">${def.precio ? fmt(def.precio) : "—"}</div>
+          <div class="cart-item-name">${nameDisplay}</div>
+          <div class="cart-item-price">${price ? fmt(price) : "—"}</div>
           <div class="cart-item-moment-change">
             <span class="moment-change-label">Mover a:</span>
             <select class="moment-select" onchange="changeItemMoment('${id}', this.value)">
@@ -190,7 +332,6 @@ function renderCart() {
         div.classList.add("dragging");
       });
       div.addEventListener("dragend", () => div.classList.remove("dragging"));
-
       groupEl.appendChild(div);
     });
 
@@ -198,6 +339,7 @@ function renderCart() {
   });
 
   subtotalEl.textContent = fmt(total);
+  renderDiscountBlock();
 }
 
 function changeItemMoment(id, newMoment) {
@@ -205,6 +347,7 @@ function changeItemMoment(id, newMoment) {
   state.cart[id].moment = newMoment;
   renderCart();
   renderPlanBuilder();
+  renderDiscountBlock();
 }
 
 // ── PLAN BUILDER ────────────────────────────────────────────
@@ -233,10 +376,8 @@ function renderPlanBuilder() {
           <span class="plan-dcto-label">Dcto:</span>
           <div class="plan-dcto-wrap">
             <input
-              type="number"
-              class="plan-dcto-input"
-              value="${dcto}"
-              min="0" max="100" step="0.5"
+              type="number" class="plan-dcto-input"
+              value="${dcto}" min="0" max="100" step="0.5"
               data-plan="${planKey}"
               onchange="setPlanDiscount('${planKey}', this.value)"
               oninput="setPlanDiscount('${planKey}', this.value)"
@@ -258,17 +399,23 @@ function renderPlanBuilder() {
       const def = getItemDef(id);
       if (!def) return;
       const effectiveMoment = getEffectiveMoment(id);
+      const price = getItemPrice(id);
       const pill = document.createElement("div");
       pill.className = "plan-item-pill";
       pill.draggable = true;
       pill.dataset.id = id;
       pill.dataset.plan = planKey;
+
+      const nameDisplay = id === POLVORA_ID
+        ? `${def.nombre} (x${state.polvoraQty})`
+        : def.nombre;
+
       pill.innerHTML = `
         <div class="pill-left">
           <span class="pill-moment-icon">${MOMENT_ICONS[effectiveMoment] || "🎵"}</span>
           <div class="pill-info">
-            <div class="pill-name">${def.nombre}</div>
-            <div class="pill-price">${def.precio ? fmt(def.precio) : "—"}</div>
+            <div class="pill-name">${nameDisplay}</div>
+            <div class="pill-price">${price ? fmt(price) : "—"}</div>
           </div>
         </div>
         <button class="pill-remove" onclick="removeFromPlan('${planKey}','${id}')" title="Quitar del plan">✕</button>
@@ -397,7 +544,7 @@ function generateQuote() {
 
   const ev = state.event;
 
-  // ── PÁGINA 1: Header + Planes ──────────────────────
+  // ── PÁGINA 1 ──────────────────────────────────────
   let html = `<div class="quote-page quote-page-1">`;
 
   html += `
@@ -423,24 +570,27 @@ function generateQuote() {
   `;
 
   PLAN_KEYS.forEach(key => {
-    const items = [...state.plans[key]].map(id => getItemDef(id)).filter(Boolean);
-    if (items.length === 0) return;
+    const ids = [...state.plans[key]];
+    if (ids.length === 0) return;
 
-    const subtotal = items.reduce((s, i) => s + (i.precio || 0), 0);
+    let subtotal = 0;
+    const byMoment = {};
+
+    ids.forEach(id => {
+      const def = getItemDef(id);
+      if (!def) return;
+      const price = getItemPrice(id);
+      subtotal += price;
+      const m = getEffectiveMoment(id);
+      if (!byMoment[m]) byMoment[m] = [];
+      byMoment[m].push({ def, price, id });
+    });
+
     const dcto = state.discounts[key] || 0;
     const total = Math.round(subtotal * (1 - dcto / 100));
 
-    const byMoment = {};
-    items.forEach(item => {
-      const m = getEffectiveMoment(item.id);
-      if (!byMoment[m]) byMoment[m] = [];
-      byMoment[m].push(item);
-    });
-
     html += `<div class="plan-card plan-${key}">
-      <div class="plan-head">
-        <h4>${PLAN_LABELS[key]}</h4>
-      </div>
+      <div class="plan-head"><h4>${PLAN_LABELS[key]}</h4></div>
       <div class="plan-body">`;
 
     MOMENT_ORDER.forEach(moment => {
@@ -448,12 +598,15 @@ function generateQuote() {
       if (!mItems || mItems.length === 0) return;
       html += `<div class="plan-moment-group">
         <div class="plan-moment-label">${MOMENT_ICONS[moment]} ${MOMENT_LABELS[moment].toUpperCase()}</div>`;
-      mItems.forEach(item => {
-        const hrs = item.horas ? `${item.horas}h` : (item.duracion || "");
+      mItems.forEach(({ def, price, id }) => {
+        const hrs = def.horas ? `${def.horas}h` : (def.duracion || "");
+        const nameDisplay = id === POLVORA_ID
+          ? `${def.nombre} x${state.polvoraQty}`
+          : def.nombre;
         html += `<div class="plan-item-row">
-          <span class="pi-name">${item.nombre}</span>
+          <span class="pi-name">${nameDisplay}</span>
           <span class="pi-hrs">${hrs}</span>
-          <span class="pi-price">${item.precio ? fmt(item.precio) : "—"}</span>
+          <span class="pi-price">${price ? fmt(price) : "—"}</span>
         </div>`;
       });
       html += `</div>`;
@@ -473,7 +626,6 @@ function generateQuote() {
 
   html += `</div>`; // end quote-plans
 
-  // Footer página 1
   html += `
     <div class="quote-footer-p1">
       <div class="qf-company">
@@ -481,22 +633,24 @@ function generateQuote() {
         NIT 901645682<br>
         Cr 58 # 125b - 29 · Bogotá · Colombia<br><br>
         <strong>JOSE LUIS DIAZ</strong><br>
-        Director Musical
+        Director Musical<br>
+        <strong>DANIEL BUITRAGO</strong><br>
+        Productor Musical
       </div>
       <div class="qf-tagline">YOUR TIME<br>YOUR<br>PLEASURE</div>
     </div>
     <div class="qf-contacts">
       <span>📸 digitalstringsmusic</span>
       <span>📞 +57 3114513734</span>
+      <span>📞 +57 3143568232</span>
       <span>✉ digitalstringsmusic@gmail.com</span>
     </div>
   `;
 
   html += `</div>`; // end page 1
 
-  // ── PÁGINA 2: Consideraciones ───────────────────────
+  // ── PÁGINA 2 ──────────────────────────────────────
   html += `<div class="quote-page quote-page-2">`;
-
   html += `
     <div class="considerations-block">
       <h3 class="considerations-title">CONSIDERACIONES</h3>
@@ -538,7 +692,6 @@ function generateQuote() {
       <span>✉ digitalstringsmusic@gmail.com</span>
     </div>
   `;
-
   html += `</div>`; // end page 2
 
   document.getElementById("quote-content").innerHTML = html;
@@ -551,9 +704,11 @@ document.getElementById("btn-clear-cart").addEventListener("click", () => {
   if (confirm("¿Limpiar todo el carrito y los planes?")) {
     state.cart = {};
     state.plans = { basico: new Set(), elite: new Set(), premium: new Set() };
+    state.manualDiscount = null;
     renderCart();
     renderAllGrids();
     renderPlanBuilder();
+    renderDiscountBlock();
   }
 });
 
@@ -584,9 +739,11 @@ function init() {
   document.getElementById("cfg-date").value = state.event.date;
   document.getElementById("cfg-start").value = state.event.start;
   document.getElementById("cfg-end").value = state.event.end;
-  document.getElementById("cfg-ceremony").value = state.event.ceremonyType;
+  if (document.getElementById("cfg-ceremony"))
+    document.getElementById("cfg-ceremony").value = state.event.ceremonyType;
 
   renderPlanBuilder();
+  renderDiscountBlock();
 }
 
 document.addEventListener("DOMContentLoaded", init);
