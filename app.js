@@ -83,24 +83,14 @@ function getItemPrice(id, planKey) {
 
 // ── AUTO-DISCOUNT LOGIC ────────────────────────────────────
 // Categorías = momentos válidos cubiertos con al menos 1 ítem en el plan
-// Momentos válidos: ceremonia, coctel, protocolo, cena, fiesta, iluminacion
-//
-// Reglas (se evalúan de mayor a menor, gana la primera que se cumple):
-//   18% → subtotal ≥ $25.000.000  (sin requisito de categorías)
-//   15% → subtotal ≥ $15.000.000  (sin requisito de categorías)
-//   10% → subtotal ≥ $11.000.000  Y  al menos 1 ítem en CADA una de las 6 categorías
-//    5% → subtotal ≥  $7.000.000  Y  al menos 1 ítem en 5 categorías distintas
-//    3% → subtotal ≥  $6.000.000  Y  al menos 1 ítem en 4 categorías distintas
+// Condición: se cumple con monto OR categorías (lo que llegue primero)
+//   3%  → monto ≥ $6M  O  ítems en ≥ 4 categorías distintas
+//   5%  → monto ≥ $7M  O  ítems en ≥ 5 categorías distintas
+//  10%  → monto ≥ $11M O  ítems en las 6 categorías
+//  15%  → monto ≥ $15M (solo monto)
+//  18%  → monto ≥ $25M (solo monto)
 
 const VALID_MOMENTS = ["ceremonia","coctel","protocolo","cena","fiesta","iluminacion"];
-
-const DISCOUNT_RULES = [
-  { pct: 18, minAmount: 25000000, minCategories: null, label: "Subtotal ≥ $25M" },
-  { pct: 15, minAmount: 15000000, minCategories: null, label: "Subtotal ≥ $15M" },
-  { pct: 10, minAmount: 11000000, minCategories: 6,    label: "1 ítem en cada categoría · Subtotal ≥ $11M" },
-  { pct:  5, minAmount:  7000000, minCategories: 5,    label: "5 categorías · Subtotal ≥ $7M" },
-  { pct:  3, minAmount:  6000000, minCategories: 4,    label: "4 categorías · Subtotal ≥ $6M" },
-];
 
 function calcAutoDiscount(planKey) {
   let sub = 0;
@@ -112,14 +102,14 @@ function calcAutoDiscount(planKey) {
     if (VALID_MOMENTS.includes(m)) coveredMoments.add(m);
   });
 
-  const catCount = coveredMoments.size;
+  const cat = coveredMoments.size;
 
-  for (const rule of DISCOUNT_RULES) {
-    const amountOk = sub >= rule.minAmount;
-    // 15% y 18% no exigen categorías, solo monto
-    const catOk = rule.minCategories === null || catCount >= rule.minCategories;
-    if (amountOk && catOk) return { pct: rule.pct, reason: rule.label };
-  }
+  if (sub >= 25000000)                          return { pct: 18, reason: "Subtotal ≥ $25M" };
+  if (sub >= 15000000)                          return { pct: 15, reason: "Subtotal ≥ $15M" };
+  if (sub >= 11000000 || cat >= 6)              return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
+  if (sub >= 7000000  || cat >= 5)              return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
+  if (sub >= 6000000  || cat >= 4)              return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
+
   return { pct: 0, reason: "Sin descuento aún" };
 }
 
