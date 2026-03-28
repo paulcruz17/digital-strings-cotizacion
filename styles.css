@@ -264,53 +264,30 @@ body {
 }
 .btn-remove-item:hover { color: var(--accent); }
 
-/* ── CART SUBTOTAL & DISCOUNT ── */
-.cart-subtotal {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 0; border-top: 1.5px solid var(--border);
-  font-weight: 700; font-size: 0.82rem; margin-top: 6px;
+/* plan auto-hint below discount row */
+.plan-auto-hint {
+  font-size: 0.55rem; font-style: italic; margin-top: 3px; opacity: 0.65;
+  text-align: center; cursor: default;
 }
-#cart-subtotal-val { font-family: var(--font-display); font-size: 1.05rem; }
+.plan-head-basico .plan-auto-hint { color: var(--mid); }
+.plan-head-elite .plan-auto-hint,
+.plan-head-premium .plan-auto-hint { color: #ccc; }
 
-/* Discount block — auto with manual override */
-.discount-block {
-  background: #f8f8f8; border-radius: 8px;
-  padding: 8px 10px; margin: 4px 0 8px;
-  border: 1px solid var(--border);
+/* Pólvora per-plan control inside pill */
+.pill-polvora-ctrl {
+  display: flex; align-items: center; gap: 3px; margin: 2px 0;
 }
-.discount-auto-badge {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px;
+.polvora-btn-sm {
+  background: rgba(0,0,0,0.1); border: none; border-radius: 3px;
+  width: 18px; height: 18px; font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--dark); line-height: 1; padding: 0; transition: all 0.15s;
 }
-.discount-rule-label {
-  font-size: 0.58rem; font-weight: 700; color: var(--mid);
-  text-transform: uppercase; letter-spacing: 0.08em;
+.polvora-btn-sm:hover { background: var(--accent); color: white; }
+.pill-polvora-qty {
+  font-size: 0.7rem; font-weight: 800; min-width: 16px; text-align: center; color: var(--black);
 }
-.discount-rule-val {
-  font-size: 0.7rem; font-weight: 800; color: var(--accent);
-}
-.discount-rule-reason {
-  font-size: 0.58rem; color: #999; font-style: italic; margin-bottom: 6px; line-height: 1.4;
-}
-.discount-manual-row {
-  display: flex; align-items: center; justify-content: space-between;
-  border-top: 1px dashed var(--border); padding-top: 6px; margin-top: 2px;
-}
-.discount-manual-label {
-  font-size: 0.6rem; font-weight: 700; color: var(--mid);
-  text-transform: uppercase; letter-spacing: 0.06em;
-}
-.discount-input-wrap {
-  display: flex; align-items: center; gap: 4px;
-  background: var(--white); border-radius: 5px;
-  padding: 3px 8px; border: 1.5px solid var(--border);
-}
-.discount-input-wrap input {
-  width: 44px; border: none; background: transparent;
-  font-family: var(--font-main); font-size: 0.85rem;
-  font-weight: 700; text-align: right; color: var(--dark); outline: none;
-}
-.discount-input-wrap span { font-weight: 700; color: var(--mid); font-size: 0.75rem; }
+.pill-polvora-label { font-size: 0.55rem; color: var(--mid); font-weight: 600; }
 
 /* ── PLAN BUILDER SECTION ── */
 .plan-builder-section {
@@ -547,27 +524,35 @@ body {
 .considerations-list li strong { color: var(--black); }
 .considerations-list li em { font-style: italic; }
 
-.quote-footer-p2 {
+/* ── SHARED FOOTER (ambas páginas) ── */
+.quote-footer-shared {
   display: flex; justify-content: space-between; align-items: center;
-  gap: 2rem; padding: 1.5rem 0; border-top: 2px solid var(--black);
-  border-bottom: 2px solid var(--black);
+  padding: 10px 0; border-top: 2px solid var(--black);
+  margin-top: 1.5rem; gap: 1rem;
 }
-.qf2-left { flex: 1; }
-.qf2-company { font-size: 0.66rem; color: var(--dark); line-height: 1.8; }
-.qf2-company strong, .qf2-director strong { font-size: 0.72rem; letter-spacing: 0.08em; }
-.qf2-director { font-size: 0.66rem; color: var(--dark); line-height: 1.8; }
-.qf2-center { display: flex; align-items: center; justify-content: center; }
-.qr-img { width: 140px; height: 140px; object-fit: contain; }
-.qf2-right { flex: 1; text-align: right; }
-.qf2-tagline {
-  font-family: var(--font-display); font-size: 1.6rem;
-  font-weight: 700; line-height: 1.1; letter-spacing: 0.01em;
+.qfs-left { flex: 1; }
+.qfs-company {
+  font-size: 0.6rem; font-weight: 600; color: var(--dark); line-height: 1.6;
 }
-.qf2-contacts {
-  font-size: 0.6rem; color: var(--mid);
-  margin-top: 1rem; display: flex; justify-content: center; gap: 2.5rem;
+.qfs-company strong { letter-spacing: 0.06em; }
+.qfs-people { font-size: 0.58rem; color: var(--mid); margin-top: 2px; line-height: 1.6; }
+.qfs-people strong { color: var(--dark); }
+.qfs-tagline {
+  font-family: var(--font-display); font-size: 1.1rem;
+  font-weight: 700; text-align: right; line-height: 1.15; white-space: nowrap;
 }
-.qf2-contacts span { display: flex; align-items: center; gap: 4px; }
+.qfs-contacts {
+  font-size: 0.55rem; color: var(--mid);
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 1.5rem; flex-wrap: wrap;
+}
+
+/* QR center on page 2 */
+.p2-footer-center {
+  display: flex; justify-content: center; margin: 1.5rem 0;
+}
+.qr-img { width: 110px; height: 110px; object-fit: contain; }
 
 /* ── PRINT ── */
 @media print {
