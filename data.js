@@ -277,6 +277,12 @@ const DB = {
       nombre: "Pólvora Fría x 6",
       descripcion: "Efectos de pólvora fría para momentos especiales (x2)",
       precio: 750000
+    },
+    {
+      id: "il-niebla",
+      nombre: "Niebla Baja",
+      descripcion: "Efectos de niebla baja",
+      precio: 600000
     }
   ]
 };

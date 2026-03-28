@@ -1,3 +1,13 @@
+// ============================================================
+//  DIGITAL STRINGS — APP LOGIC v7
+//  - Carrito: solo lista de ítems, sin subtotal/descuento
+//  - Pólvora: cantidad independiente por plan, saltos de 2 en 2
+//  - Precio pólvora escalonado: 2 disp = $150k c/u, 4+ = $125k c/u
+//  - Descuento sugerido se auto-rellena en el input (editable)
+//  - Reglas de descuento por categorías (momentos) + monto mínimo
+//  - Footer compacto igual en ambas páginas
+// ============================================================
+
 // ── STATE ──────────────────────────────────────────────────
 const state = {
   event: {
@@ -13,14 +23,14 @@ const state = {
   polvoraQty: { catalogo: 2, basico: 2, elite: 4, premium: 6 },
   plans: { basico: new Set(), elite: new Set(), premium: new Set() },
   discounts: { basico: 0, elite: 0, premium: 0 },
-  discountManual: { basico: false, elite: false, premium: false }, // flag: el usuario editó manualmente
+  discountManual: { basico: false, elite: false, premium: false }, // true cuando el usuario editó a mano
   activeMoment: "ceremonia",
   drag: { id: null, sourcePlan: null }
 };
 
 const POLVORA_ID = "il-polvora";
-const POLVORA_UNIT_PRICE = 150000; // precio por disparo para 2 disparos
-const POLVORA_UNIT_PRICE_BULK = 125000; // precio por disparo para 4+
+const POLVORA_UNIT_PRICE      = 150000; // precio c/u para 2 disparos
+const POLVORA_UNIT_PRICE_BULK = 125000; // precio c/u para 4+ disparos
 
 // ── UTILS ──────────────────────────────────────────────────
 function fmt(n) {
@@ -57,13 +67,12 @@ function formatTime(t) {
 }
 
 // ── PRECIO PÓLVORA (ESCALONADO) ────────────────────────────
-// 2 disparos → $150.000 c/u
-// 4 disparos en adelante → $125.000 c/u
-// Solo números pares (saltos de 2 en 2)
+// 2 disparos  → $150.000 c/u = $300.000 total
+// 4+ disparos → $125.000 c/u  (solo números pares)
 function getPolvoraPrice(planKey) {
   const qty = state.polvoraQty[planKey] || 2;
-  if (qty <= 2) return POLVORA_UNIT_PRICE * qty;   // 2 → $300.000
-  return qty * POLVORA_UNIT_PRICE_BULK;             // 4+ → $125k c/u
+  if (qty <= 2) return POLVORA_UNIT_PRICE * qty;
+  return qty * POLVORA_UNIT_PRICE_BULK;
 }
 
 function getItemPrice(id, planKey) {
@@ -73,25 +82,41 @@ function getItemPrice(id, planKey) {
 }
 
 // ── AUTO-DISCOUNT LOGIC ────────────────────────────────────
+// Categorías = momentos válidos cubiertos con al menos 1 ítem en el plan
+// Momentos válidos: ceremonia, coctel, protocolo, cena, fiesta, iluminacion
+//
+// Reglas (se evalúan de mayor a menor, gana la primera que se cumple):
+//   18% → subtotal ≥ $25.000.000  (sin requisito de categorías)
+//   15% → subtotal ≥ $15.000.000  (sin requisito de categorías)
+//   10% → subtotal ≥ $11.000.000  Y  al menos 1 ítem en CADA una de las 6 categorías
+//    5% → subtotal ≥  $7.000.000  Y  al menos 1 ítem en 5 categorías distintas
+//    3% → subtotal ≥  $6.000.000  Y  al menos 1 ítem en 4 categorías distintas
+
+const VALID_MOMENTS = ["ceremonia","coctel","protocolo","cena","fiesta","iluminacion"];
+
 const DISCOUNT_RULES = [
   { pct: 18, minAmount: 25000000, minCategories: null, label: "Subtotal ≥ $25M" },
   { pct: 15, minAmount: 15000000, minCategories: null, label: "Subtotal ≥ $15M" },
-  { pct: 10, minAmount: 11000000, minCategories: 6,    label: "6 categorías · Subtotal ≥ $11M" },
+  { pct: 10, minAmount: 11000000, minCategories: 6,    label: "1 ítem en cada categoría · Subtotal ≥ $11M" },
   { pct:  5, minAmount:  7000000, minCategories: 5,    label: "5 categorías · Subtotal ≥ $7M" },
   { pct:  3, minAmount:  6000000, minCategories: 4,    label: "4 categorías · Subtotal ≥ $6M" },
 ];
 
 function calcAutoDiscount(planKey) {
   let sub = 0;
-  const moments = new Set();
+  const coveredMoments = new Set();
+
   state.plans[planKey].forEach(id => {
     sub += getItemPrice(id, planKey);
-    moments.add(getEffectiveMoment(id));
+    const m = getEffectiveMoment(id);
+    if (VALID_MOMENTS.includes(m)) coveredMoments.add(m);
   });
-  const catCount = moments.size;
+
+  const catCount = coveredMoments.size;
 
   for (const rule of DISCOUNT_RULES) {
     const amountOk = sub >= rule.minAmount;
+    // 15% y 18% no exigen categorías, solo monto
     const catOk = rule.minCategories === null || catCount >= rule.minCategories;
     if (amountOk && catOk) return { pct: rule.pct, reason: rule.label };
   }
@@ -173,7 +198,7 @@ function renderAllGrids() {
   MOMENT_ORDER.forEach(m => renderGrid(m));
 }
 
-// Qty de pólvora en catálogo (solo visual) — saltos de 2 en 2
+// Qty de pólvora en catálogo — saltos de 2 en 2, mínimo 2
 function changeCatalogoQty(delta) {
   state.polvoraQty.catalogo = Math.max(2, state.polvoraQty.catalogo + delta * 2);
   const qEl = document.getElementById("cat-polvora-qty");
@@ -283,8 +308,10 @@ function renderPlanBuilder() {
     col.className = `plan-col plan-col-${planKey}`;
     col.dataset.plan = planKey;
 
-    // Si el usuario no ha editado manualmente, auto-rellenar con el descuento sugerido
+    // Calcular descuento sugerido ANTES de renderizar
     const autoD = calcAutoDiscount(planKey);
+
+    // Si el usuario NO ha tocado el input, auto-aplicar el sugerido
     if (!state.discountManual[planKey]) {
       state.discounts[planKey] = autoD.pct;
     }
@@ -292,6 +319,18 @@ function renderPlanBuilder() {
     const sub = planSubtotal(planKey);
     const dcto = state.discounts[planKey] || 0;
     const finalTotal = Math.round(sub * (1 - dcto / 100));
+
+    // Texto del hint según estado
+    let hintText = "";
+    if (sub > 0) {
+      if (state.discountManual[planKey]) {
+        hintText = `Sugerido: ${autoD.pct}% · ${fmt(sub)}`;
+      } else if (autoD.pct > 0) {
+        hintText = `✓ Dcto. auto ${autoD.pct}% aplicado · ${fmt(sub)}`;
+      } else {
+        hintText = `Sin dcto. aún · ${fmt(sub)}`;
+      }
+    }
 
     col.innerHTML = `
       <div class="plan-col-head plan-head-${planKey}">
@@ -310,10 +349,7 @@ function renderPlanBuilder() {
             <span class="plan-dcto-pct">%</span>
           </div>
         </div>
-        ${sub > 0 ? `
-          <div class="plan-auto-hint" title="${autoD.reason}">
-            ${state.discountManual[planKey] ? `Sugerido: ${autoD.pct}%` : `Dcto. auto: ${autoD.pct}%`} · ${fmt(sub)}
-          </div>` : ""}
+        ${sub > 0 ? `<div class="plan-auto-hint" title="${autoD.reason}">${hintText}</div>` : ""}
       </div>
       <div class="plan-drop-zone" data-plan="${planKey}" id="drop-${planKey}">
         ${state.plans[planKey].size === 0
@@ -334,7 +370,7 @@ function renderPlanBuilder() {
       pill.dataset.id = id;
       pill.dataset.plan = planKey;
 
-      // Pólvora: control de qty por plan dentro de la pill, saltos de 2 en 2
+      // Pólvora: control qty por plan, saltos de 2 en 2
       const polvoraCtrl = id === POLVORA_ID ? `
         <div class="pill-polvora-ctrl">
           <button class="polvora-btn polvora-btn-sm" onclick="changePlanPolvoraQty('${planKey}',-1);event.stopPropagation()">−</button>
@@ -398,37 +434,55 @@ function renderPlanBuilder() {
 // Cambiar qty de pólvora por plan — saltos de 2 en 2, precio escalonado
 function changePlanPolvoraQty(planKey, delta) {
   state.polvoraQty[planKey] = Math.max(2, (state.polvoraQty[planKey] || 2) + delta * 2);
+
   // Actualizar display de cantidad
   const qEl = document.getElementById(`polvora-qty-${planKey}`);
   if (qEl) qEl.textContent = state.polvoraQty[planKey];
+
   // Actualizar precio en la pill
   const pEl = document.getElementById(`polvora-price-${planKey}`);
   if (pEl) pEl.textContent = fmt(getPolvoraPrice(planKey));
-  // Recalcular cabecera del plan (subtotal + total)
-  const sub = planSubtotal(planKey);
-  // Si no fue editado manualmente, actualizar también el descuento sugerido
+
+  // Recalcular descuento sugerido y totales
   const autoD = calcAutoDiscount(planKey);
   if (!state.discountManual[planKey]) {
     state.discounts[planKey] = autoD.pct;
     const inputEl = document.querySelector(`.plan-col-${planKey} .plan-dcto-input`);
     if (inputEl) inputEl.value = autoD.pct;
   }
+
+  const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey] || 0;
   const finalTotal = Math.round(sub * (1 - dcto / 100));
+
   const totalEl = document.querySelector(`.plan-col-${planKey} .plan-col-total`);
-  const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
+  const hintEl  = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (totalEl) totalEl.textContent = fmt(finalTotal);
-  if (hintEl) hintEl.textContent = `${state.discountManual[planKey] ? `Sugerido: ${autoD.pct}%` : `Dcto. auto: ${autoD.pct}%`} · ${fmt(sub)}`;
+  if (hintEl) {
+    if (state.discountManual[planKey]) {
+      hintEl.textContent = `Sugerido: ${autoD.pct}% · ${fmt(sub)}`;
+    } else if (autoD.pct > 0) {
+      hintEl.textContent = `✓ Dcto. auto ${autoD.pct}% aplicado · ${fmt(sub)}`;
+    } else {
+      hintEl.textContent = `Sin dcto. aún · ${fmt(sub)}`;
+    }
+  }
 }
 
+// El usuario editó el input manualmente → marcar como manual y recalcular total
 function setPlanDiscount(planKey, value) {
   state.discounts[planKey] = parseFloat(value) || 0;
-  state.discountManual[planKey] = true; // el usuario tocó el input manualmente
+  state.discountManual[planKey] = true;
+
   const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey];
   const finalTotal = Math.round(sub * (1 - dcto / 100));
+  const autoD = calcAutoDiscount(planKey);
+
   const totalEl = document.querySelector(`.plan-col-${planKey} .plan-col-total`);
+  const hintEl  = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (totalEl) totalEl.textContent = fmt(finalTotal);
+  if (hintEl)  hintEl.textContent  = `Sugerido: ${autoD.pct}% · ${fmt(sub)}`;
 }
 
 function removeFromPlan(planKey, id) {
@@ -499,7 +553,6 @@ function updateHeaderDisplay() {
 }
 
 // ── SHARED FOOTER HTML ──────────────────────────────────────
-// Footer compacto idéntico para página 1 y 2
 function sharedFooterHTML() {
   return `
     <div class="quote-footer-shared">
