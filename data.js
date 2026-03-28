@@ -261,6 +261,12 @@ const DB = {
       precio: 3600000
     },
     {
+      id: "il-booth-led12",
+      nombre: "Booth Pantalla LED (12mts)",
+      descripcion: "Booth pantalla LED (12 mts)",
+      precio: 5000000
+    },
+    {
       id: "il-polvora-2",
       nombre: "Pólvora Fría x 2",
       descripcion: "Efectos de pólvora fría para momentos especiales (x2)",

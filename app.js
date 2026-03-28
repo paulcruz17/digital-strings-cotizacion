@@ -100,11 +100,11 @@ function calcAutoDiscount(planKey) {
 
   const cat = coveredMoments.size;
 
-  if (sub >= 25000000)             return { pct: 18, reason: "Subtotal ≥ $25M" };
-  if (sub >= 15000000)             return { pct: 15, reason: "Subtotal ≥ $15M" };
-  if (sub >= 11000000 || cat >= 6) return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
-  if (sub >= 7000000  || cat >= 5) return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
-  if (sub >= 6000000  || cat >= 4) return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
+  if (sub >= 25000000)                          return { pct: 18, reason: "Subtotal ≥ $25M" };
+  if (sub >= 15000000)                          return { pct: 15, reason: "Subtotal ≥ $15M" };
+  if (sub >= 11000000 || cat >= 6)              return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
+  if (sub >= 7000000  || cat >= 5)              return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
+  if (sub >= 6000000  || cat >= 4)              return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
 
   return { pct: 0, reason: "Sin descuento aún" };
 }
