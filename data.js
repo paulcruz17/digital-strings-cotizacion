@@ -58,7 +58,7 @@ const DB = {
       nombre: "Ensamble de Cámara",
       descripcion: "Ensamble de Cámara de 18 Artistas",
       horas: 1,
-      precio: 6300000,
+      precio: 7980000,
       categoria: "musica"
     },
     {
