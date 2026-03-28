@@ -507,7 +507,6 @@ function generateQuote() {
         <li><strong>Electricidad:</strong> La electricidad es responsabilidad del venue o del contratante, quien deberá garantizar tomas de corriente normalizadas a 110 V, en adecuadas condiciones de estabilidad y seguridad para la operación de los equipos.</li>
         <li><strong>Formas de Pago:</strong> Si el pago se hace con datáfono o link de pago se suma el cobro adicional de las comisiones interbancarias según simulación de la pasarela de pago.</li>
         <li><strong>Alimentación del equipo:</strong> En caso de que el evento se desarrolle durante la noche o afecte el horario habitual de comida, se deberá proporcionar cena para el equipo de Digital Strings, garantizando condiciones adecuadas de alimentación para el correcto desempeño de sus funciones.</li>
-        <li><em>Esta cotización está hecha para el desarrollo del evento en Bogotá, si la locación se encuentra fuera del perímetro tendrá un aumento del 20% o 30% según las condiciones de la hacienda.</em></li>
       </ul>
     </div>
 
