@@ -163,8 +163,7 @@ const DB = {
       id: "ce-flashmob",
       nombre: "Flashmob Digital Strings",
       descripcion: "Sorpresa musical en vivo durante la cena",
-      horas: null,
-      duracion: "20 min",
+      horas: 1,
       precio: 1500000,
       categoria: "show"
     },
@@ -172,8 +171,7 @@ const DB = {
       id: "ce-gypsys",
       nombre: "The Gypsys Digital Strings",
       descripcion: "",
-      horas: null,
-      duracion: "30 min",
+      horas: 1,
       precio: 2400000,
       categoria: "show"
     }
@@ -184,8 +182,7 @@ const DB = {
       id: "f-hora-loca",
       nombre: "Hora Loca",
       descripcion: "Hora loca 3 integrantes. Show moderno de saxofón, percusión y cantante. Incluye champeta, reggaetón y música electrónica.",
-      horas: null,
-      duracion: "40 min",
+      horas: 1,
       precio: 2200000,
       categoria: "show"
     },
@@ -193,8 +190,7 @@ const DB = {
       id: "f-parranda",
       nombre: "Parranda Vallenata",
       descripcion: "Parranda Vallenata 6 integrantes",
-      horas: null,
-      duracion: "45 min",
+      horas: 1,
       precio: 2200000,
       categoria: "show"
     },

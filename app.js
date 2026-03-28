@@ -7,12 +7,12 @@
 // ── STATE ──────────────────────────────────────────────────
 const state = {
   event: {
-    couple: "Daniela & Angelo",
-    city: "Bogotá",
-    date: "2027-03-21",
-    start: "16:00",
-    end: "01:00",
-    ceremonyType: "cristiana"
+    couple: "",
+    city: "",
+    date: "",
+    start: "",
+    end: "",
+    ceremonyType: ""
   },
   cart: {},
   plans: { basico: new Set(), elite: new Set(), premium: new Set() },
