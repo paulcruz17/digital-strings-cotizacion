@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Strings — Cotizador Matrimonio</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo-block">
+        <div class="logo-circle">
+          <img src="logo.png" alt="Logo">
+        </div>
+        <div>
+          <div class="logo-title">DIGITAL STRINGS</div>
+          <div class="logo-tagline">YOUR TIME · YOUR PLEASURE</div>
+        </div>
+      </div>
+      <div class="header-event">
+        <div class="event-label">COTIZACIÓN MATRIMONIO</div>
+        <div class="event-couple" id="display-couple"></div>
+        <div class="event-meta" id="display-meta"></div>
+      </div>
+      <button class="btn-config" id="btn-open-config">EVENTO</button>
+    </div>
+  </header>
+
+  <!-- CONFIG MODAL -->
+  <div class="modal-overlay" id="modal-config">
+    <div class="modal-box">
+      <h2 class="modal-title">Datos del Evento</h2>
+      <label>Novios</label>
+      <input type="text" id="cfg-couple" value="Novia & Novio" />
+      <label>Ciudad</label>
+      <input type="text" id="cfg-city" value="Bogotá" />
+      <label>Fecha</label>
+      <input type="date" id="cfg-date" value="" />
+      <label>Hora inicio</label>
+      <input type="time" id="cfg-start" value="" />
+      <label>Hora fin</label>
+      <input type="time" id="cfg-end" value="" />
+      <label>Tipo de ceremonia</label>
+      <select id="cfg-ceremony">
+        <option value="simbolica">Simbólica</option>
+        <option value="cristiana" selected>Cristiana</option>
+        <option value="catolica">Católica (capilla)</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btn-close-config">Cancelar</button>
+        <button class="btn-primary" id="btn-save-config">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN LAYOUT: CATALOG + CART -->
+  <main class="app-layout">
+
+    <!-- LEFT: CATALOG -->
+    <section class="moments-panel">
+      <div class="moment-tabs">
+        <button class="tab-btn active" data-moment="ceremonia">🎻 Ceremonia</button>
+        <button class="tab-btn" data-moment="coctel">🥂 Cóctel</button>
+        <button class="tab-btn" data-moment="protocolo">🎧 Protocolo</button>
+        <button class="tab-btn" data-moment="cena">🍽 Cena</button>
+        <button class="tab-btn" data-moment="fiesta">🎉 Fiesta</button>
+        <button class="tab-btn" data-moment="iluminacion">💡 Iluminación</button>
+      </div>
+
+      <div class="moment-section active" id="section-ceremonia">
+        <div class="section-header">
+          <h2>Ceremonia</h2>
+          <span class="ceremony-type-badge" id="ceremony-badge">Cristiana</span>
+        </div>
+        <p class="section-note" id="sound-note" style="display:none;"></p>
+        <div class="items-grid" id="grid-ceremonia"></div>
+      </div>
+
+      <div class="moment-section" id="section-coctel">
+        <div class="section-header"><h2>Cóctel</h2></div>
+        <div class="items-grid" id="grid-coctel"></div>
+      </div>
+
+      <div class="moment-section" id="section-protocolo">
+        <div class="section-header"><h2>Protocolo</h2></div>
+        <div class="items-grid" id="grid-protocolo"></div>
+      </div>
+
+      <div class="moment-section" id="section-cena">
+        <div class="section-header"><h2>Cena</h2></div>
+        <div class="items-grid" id="grid-cena"></div>
+      </div>
+
+      <div class="moment-section" id="section-fiesta">
+        <div class="section-header"><h2>Fiesta</h2></div>
+        <div class="items-grid" id="grid-fiesta"></div>
+      </div>
+
+      <div class="moment-section" id="section-iluminacion">
+        <div class="section-header"><h2>Sonido e Iluminación</h2></div>
+        <p class="section-note" style="display:block;">El sonido e iluminación básica siempre se incluye en los planes.</p>
+        <div class="items-grid" id="grid-iluminacion"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: CART -->
+    <aside class="cart-panel">
+      <div class="cart-header">
+        <h3>🛒 Carrito</h3>
+        <button class="btn-clear" id="btn-clear-cart">Limpiar todo</button>
+      </div>
+      <div class="cart-tip">
+        Agrega ítems y luego <strong>arrastra al plan</strong> correspondiente abajo.
+        También puedes cambiar el <strong>momento</strong> de cada ítem.
+      </div>
+      <div class="cart-items" id="cart-items">
+        <div class="cart-empty">Agrega servicios al carrito</div>
+      </div>
+      
+      <div class="discount-row">
+        <label>Descuento</label>
+        <div class="discount-input-wrap">
+          <input type="number" id="discount-input" value="4" min="0" max="100" step="0.5" />
+          <span>%</span>
+        </div>
+      </div>
+      <button class="btn-primary btn-full" id="btn-generate">Generar Cotización</button>
+    </aside>
+
+  </main>
+
+  <!-- PLAN BUILDER -->
+  <section class="plan-builder-section">
+    <div class="plan-builder-header">
+      <div class="plan-builder-title-block">
+        <h2 class="plan-builder-title">Constructor de Planes</h2>
+        <p class="plan-builder-subtitle">Arrastra los ítems del carrito a cada plan.</p>
+      </div>
+      <button class="btn-secondary btn-sm" id="btn-clear-plans">Limpiar planes</button>
+    </div>
+    <div class="plan-builder" id="plan-builder">
+      <!-- rendered by JS -->
+    </div>
+  </section>
+
+  <!-- QUOTE OUTPUT -->
+  <section class="quote-output" id="quote-output" style="display:none;">
+    <div class="quote-inner">
+      <div class="quote-top-bar">
+        <h2>COTIZACIÓN FINAL</h2>
+        <div class="quote-actions">
+          <button class="btn-secondary" id="btn-print">🖨 Imprimir / PDF</button>
+          <button class="btn-secondary" id="btn-close-quote">✕ Cerrar</button>
+        </div>
+      </div>
+      <div id="quote-content"></div>
+    </div>
+  </section>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
