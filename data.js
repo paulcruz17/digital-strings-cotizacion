@@ -195,6 +195,14 @@ const DB = {
       categoria: "show"
     },
     {
+      id: "f-hora-loca-XV",
+      nombre: "Hora Loca XV",
+      descripcion: "Hora loca XV, Consta de Pistolas CO2, Pistolas LED Shot (Agua) & Robots LED",
+      horas: 1,
+      precio: 3500000,
+      categoria: "show"
+    },
+    {
       id: "f-parranda",
       nombre: "Parranda Vallenata",
       descripcion: "Parranda Vallenata 6 integrantes",
