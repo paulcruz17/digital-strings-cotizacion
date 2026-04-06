@@ -195,7 +195,7 @@ const DB = {
       categoria: "show"
     },
     {
-      id: "f-hora-loca",
+      id: "f-hora-loca-xv",
       nombre: "Hora Loca XV",
       descripcion: "Hora loca XV, Consta de Pistolas CO2, Pistolas LED Shot (Agua) & Robots LED",
       horas: 1,
