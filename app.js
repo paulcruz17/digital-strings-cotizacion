@@ -1,12 +1,3 @@
-// ============================================================
-//  DIGITAL STRINGS — APP LOGIC v8
-//  - Plan header: muestra SUBTOTAL siempre + TOTAL CON DCTO si aplica
-//  - Pólvora: saltos de 2 en 2, precio escalonado
-//  - Descuento sugerido auto-rellena el input (editable)
-//  - Reglas OR: monto O categorías activan el descuento
-//  - Footer compacto igual en ambas páginas
-// ============================================================
-
 // ── STATE ──────────────────────────────────────────────────
 const state = {
   event: {
