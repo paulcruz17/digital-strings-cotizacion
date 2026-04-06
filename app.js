@@ -528,7 +528,7 @@ function updateCeremonyUI() {
   const badge = document.getElementById("ceremony-badge");
   const note = document.getElementById("sound-note");
   const isCatolica = state.event.ceremonyType === "catolica";
-  if (badge) badge.textContent = isCatolica ? "Católica (Capilla)" : state.event.ceremonyType === "simbolica" ? "Simbólica" : "Cristiana";
+  if (badge) badge.textContent = isCatolica ? "Católica (Capilla)" : state.event.ceremonyType === "simbolica" ? "Simbólica" : state.event.ceremonyType === "xv-años" ? "XV Años" : "Cristiana";
   if (note) {
     note.style.display = isCatolica ? "block" : "none";
     if (isCatolica) note.textContent = "En capilla católica el sonido no se cobra.";
