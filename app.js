@@ -1,10 +1,8 @@
 // ============================================================
-//  DIGITAL STRINGS — APP LOGIC v9
-//  - Tipos de evento: matrimonio, xv-años, bautizo, privado, empresarial
-//  - Tab Ceremonia: visible/oculto según tipo de evento
-//  - Bautizo: siempre en capilla (no se cobra sonido ceremonia)
-//  - XV Años: sin tab Ceremonia
-//  - Footer fijo al fondo en impresión
+//  DIGITAL STRINGS — APP LOGIC v10
+//  - Varita mágica: marcar ítems como obsequio (precio = 0)
+//  - Obsequio se mantiene en la cotización con etiqueta 🎁
+//  - Compatible con todos los tipos de evento
 // ============================================================
 
 // ── CONFIGURACIÓN POR TIPO DE EVENTO ──────────────────────
@@ -25,7 +23,7 @@ const EVENT_CONFIG = {
     label: "COTIZACIÓN BAUTIZO",
     hasCeremonia: true,
     ceremonyOptions: ["catolica"],
-    defaultCeremony: "catolica"   // bautizo siempre en capilla
+    defaultCeremony: "catolica"
   },
   "privado": {
     label: "COTIZACIÓN EVENTO PRIVADO",
@@ -60,7 +58,9 @@ const state = {
     end: "",
     ceremonyType: "simbolica"
   },
-  cart: {},
+  cart: {},           // { id: { moment } }
+  gifts: new Set(),   // IDs marcados como obsequio
+  wandActive: false,  // modo varita activo
   polvoraQty: { catalogo: 2, basico: 2, elite: 4, premium: 6 },
   plans: { basico: new Set(), elite: new Set(), premium: new Set() },
   discounts: { basico: 0, elite: 0, premium: 0 },
@@ -114,10 +114,42 @@ function getPolvoraPrice(planKey) {
   return qty * POLVORA_UNIT_PRICE_BULK;
 }
 
+// Precio efectivo: obsequios cuestan 0
 function getItemPrice(id, planKey) {
+  if (state.gifts.has(id)) return 0;
   if (id === POLVORA_ID) return getPolvoraPrice(planKey || "catalogo");
   const def = getItemDef(id);
   return def?.precio || 0;
+}
+
+// ── VARITA MÁGICA ──────────────────────────────────────────
+function toggleWand() {
+  state.wandActive = !state.wandActive;
+  const btn = document.getElementById("btn-wand");
+  const body = document.body;
+  const tip = document.getElementById("wand-tip");
+  if (state.wandActive) {
+    btn.classList.add("wand-active");
+    btn.title = "Varita activa — clic aquí para desactivar";
+    body.classList.add("wand-cursor");
+    if (tip) tip.style.display = "block";
+  } else {
+    btn.classList.remove("wand-active");
+    btn.title = "🪄 Varita mágica — obsequiar un ítem";
+    body.classList.remove("wand-cursor");
+    if (tip) tip.style.display = "none";
+  }
+}
+
+function toggleGift(id) {
+  if (!state.wandActive) return;
+  if (state.gifts.has(id)) {
+    state.gifts.delete(id);
+  } else {
+    state.gifts.add(id);
+  }
+  renderCart();
+  renderPlanBuilder();
 }
 
 // ── AUTO-DISCOUNT LOGIC ────────────────────────────────────
@@ -126,21 +158,17 @@ const VALID_MOMENTS = ["ceremonia","coctel","protocolo","cena","fiesta","ilumina
 function calcAutoDiscount(planKey) {
   let sub = 0;
   const coveredMoments = new Set();
-
   state.plans[planKey].forEach(id => {
     sub += getItemPrice(id, planKey);
     const m = getEffectiveMoment(id);
     if (VALID_MOMENTS.includes(m)) coveredMoments.add(m);
   });
-
   const cat = coveredMoments.size;
-
   if (sub >= 25000000)             return { pct: 18, reason: "Subtotal ≥ $25M" };
   if (sub >= 15000000)             return { pct: 15, reason: "Subtotal ≥ $15M" };
   if (sub >= 11000000 || cat >= 6) return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
   if (sub >= 7000000  || cat >= 5) return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
   if (sub >= 6000000  || cat >= 4) return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
-
   return { pct: 0, reason: "Sin descuento aún" };
 }
 
@@ -151,30 +179,17 @@ function planSubtotal(planKey) {
   return sum;
 }
 
-// ── ACTUALIZAR TAB Y SECCIÓN CEREMONIA según tipo de evento ──
+// ── EVENT TYPE UI ───────────────────────────────────────────
 function updateEventTypeUI() {
   const cfg = EVENT_CONFIG[state.event.type] || EVENT_CONFIG["matrimonio"];
   const tabCeremonia = document.querySelector('.tab-btn[data-moment="ceremonia"]');
-  const sectionCeremonia = document.getElementById("section-ceremonia");
   const ceremonyBlock = document.getElementById("ceremony-config-block");
-
-  // Mostrar/ocultar tab Ceremonia
-  if (tabCeremonia) {
-    tabCeremonia.style.display = cfg.hasCeremonia ? "" : "none";
-  }
-
-  // Mostrar/ocultar bloque de configuración de ceremonia en el modal
-  if (ceremonyBlock) {
-    ceremonyBlock.style.display = cfg.hasCeremonia ? "" : "none";
-  }
-
-  // Si el evento no tiene ceremonia y el tab activo es ceremonia, cambiar al primer tab visible
+  if (tabCeremonia) tabCeremonia.style.display = cfg.hasCeremonia ? "" : "none";
+  if (ceremonyBlock) ceremonyBlock.style.display = cfg.hasCeremonia ? "" : "none";
   if (!cfg.hasCeremonia && state.activeMoment === "ceremonia") {
     const firstVisible = MOMENT_ORDER.find(m => m !== "ceremonia");
     if (firstVisible) switchTab(firstVisible);
   }
-
-  // Actualizar opciones del select de ceremonia en el modal
   const cfgCeremony = document.getElementById("cfg-ceremony");
   if (cfgCeremony) {
     cfgCeremony.innerHTML = cfg.ceremonyOptions.map(opt => {
@@ -182,8 +197,6 @@ function updateEventTypeUI() {
       return `<option value="${opt}" ${state.event.ceremonyType === opt ? "selected" : ""}>${labels[opt]}</option>`;
     }).join("");
   }
-
-  // Actualizar label del header
   const labelEl = document.getElementById("display-event-type");
   if (labelEl) labelEl.textContent = EVENT_TYPE_LABELS[state.event.type] || "COTIZACIÓN";
 }
@@ -204,33 +217,20 @@ function renderGrid(moment) {
   const grid = document.getElementById(`grid-${moment}`);
   if (!grid || !items) return;
   grid.innerHTML = "";
-
   const isCatolica = state.event.ceremonyType === "catolica";
   const isBautizo  = state.event.type === "bautizo";
-
   items.forEach(item => {
-    // En capilla católica o bautizo no se ofrece sonido de ceremonia
     if (item.id === "c-sonido" && (isCatolica || isBautizo)) return;
-
     const inCart = !!state.cart[item.id];
     const card = document.createElement("div");
     card.className = `item-card${inCart ? " in-cart" : ""}`;
-
-    const displayPrice = item.id === POLVORA_ID
-      ? fmt(getPolvoraPrice("catalogo"))
-      : fmt(item.precio);
-
+    const displayPrice = item.id === POLVORA_ID ? fmt(getPolvoraPrice("catalogo")) : fmt(item.precio);
     const priceDisplay = item.siempre
       ? '<span class="item-price">Incluido</span>'
       : `<span class="item-price" id="cat-price-${item.id}">${displayPrice}</span>`;
-
-    const durDisplay = item.duracion
-      ? item.duracion
-      : item.horas ? `${item.horas} hora${item.horas > 1 ? "s" : ""}` : "";
-
+    const durDisplay = item.duracion ? item.duracion : item.horas ? `${item.horas} hora${item.horas > 1 ? "s" : ""}` : "";
     const btnText = item.siempre ? "Siempre incluido" : inCart ? "✓ En carrito" : "+ Agregar";
     const btnClass = item.siempre ? "btn-add disabled-btn" : inCart ? "btn-add in-cart-btn" : "btn-add";
-
     let polvoraExtra = "";
     if (item.id === POLVORA_ID) {
       polvoraExtra = `
@@ -241,10 +241,8 @@ function renderGrid(moment) {
             <span class="polvora-qty-val" id="cat-polvora-qty">${state.polvoraQty.catalogo}</span>
             <button class="polvora-btn" onclick="changeCatalogoQty(1)">+</button>
           </div>
-        </div>
-      `;
+        </div>`;
     }
-
     card.innerHTML = `
       <div class="item-nombre">${item.nombre}</div>
       <div class="item-desc">${item.descripcion}</div>
@@ -259,9 +257,7 @@ function renderGrid(moment) {
   });
 }
 
-function renderAllGrids() {
-  MOMENT_ORDER.forEach(m => renderGrid(m));
-}
+function renderAllGrids() { MOMENT_ORDER.forEach(m => renderGrid(m)); }
 
 function changeCatalogoQty(delta) {
   state.polvoraQty.catalogo = Math.max(2, state.polvoraQty.catalogo + delta * 2);
@@ -275,6 +271,7 @@ function changeCatalogoQty(delta) {
 function toggleCart(id, originMoment) {
   if (state.cart[id]) {
     delete state.cart[id];
+    state.gifts.delete(id);
     ["basico","elite","premium"].forEach(p => state.plans[p].delete(id));
   } else {
     state.cart[id] = { moment: originMoment };
@@ -288,45 +285,40 @@ function toggleCart(id, originMoment) {
 function renderCart() {
   const container = document.getElementById("cart-items");
   const ids = Object.keys(state.cart);
-
   if (ids.length === 0) {
     container.innerHTML = '<div class="cart-empty">Agrega servicios al carrito</div>';
     return;
   }
-
   const groups = {};
   ids.forEach(id => {
     const m = getEffectiveMoment(id);
     if (!groups[m]) groups[m] = [];
     groups[m].push(id);
   });
-
   container.innerHTML = "";
-
   MOMENT_ORDER.forEach(moment => {
     const gids = groups[moment];
     if (!gids || gids.length === 0) return;
-
     const groupEl = document.createElement("div");
     groupEl.className = "cart-group";
     groupEl.innerHTML = `<div class="cart-group-label">${MOMENT_ICONS[moment]} ${MOMENT_LABELS[moment]}</div>`;
-
     gids.forEach(id => {
       const def = getItemDef(id);
       if (!def) return;
-
+      const isGift = state.gifts.has(id);
       const div = document.createElement("div");
-      div.className = "cart-item";
-      div.draggable = true;
+      div.className = `cart-item${isGift ? " cart-item-gift" : ""}`;
+      div.draggable = !state.wandActive;
       div.dataset.id = id;
-
       const momentOptions = MOMENT_ORDER.map(m =>
         `<option value="${m}" ${getEffectiveMoment(id) === m ? "selected" : ""}>${MOMENT_LABELS[m]}</option>`
       ).join("");
-
       div.innerHTML = `
         <div class="cart-item-info">
-          <div class="cart-item-name">${def.nombre}</div>
+          <div class="cart-item-name">
+            ${isGift ? '<span class="gift-badge">🎁 Obsequio</span>' : ""}
+            ${def.nombre}
+          </div>
           <div class="cart-item-moment-change">
             <span class="moment-change-label">Mover a:</span>
             <select class="moment-select" onchange="changeItemMoment('${id}', this.value)">
@@ -336,17 +328,21 @@ function renderCart() {
         </div>
         <button class="btn-remove-item" onclick="toggleCart('${id}')" title="Quitar">✕</button>
       `;
-
+      div.addEventListener("click", e => {
+        if (!state.wandActive) return;
+        if (e.target.classList.contains("btn-remove-item") || e.target.classList.contains("moment-select")) return;
+        e.preventDefault(); e.stopPropagation();
+        toggleGift(id);
+      });
       div.addEventListener("dragstart", e => {
-        state.drag.id = id;
-        state.drag.sourcePlan = null;
+        if (state.wandActive) { e.preventDefault(); return; }
+        state.drag.id = id; state.drag.sourcePlan = null;
         e.dataTransfer.effectAllowed = "copy";
         div.classList.add("dragging");
       });
       div.addEventListener("dragend", () => div.classList.remove("dragging"));
       groupEl.appendChild(div);
     });
-
     container.appendChild(groupEl);
   });
 }
@@ -366,32 +362,21 @@ function renderPlanBuilder() {
   const container = document.getElementById("plan-builder");
   if (!container) return;
   container.innerHTML = "";
-
   PLAN_KEYS.forEach(planKey => {
     const col = document.createElement("div");
     col.className = `plan-col plan-col-${planKey}`;
     col.dataset.plan = planKey;
-
     const autoD = calcAutoDiscount(planKey);
-    if (!state.discountManual[planKey]) {
-      state.discounts[planKey] = autoD.pct;
-    }
-
+    if (!state.discountManual[planKey]) state.discounts[planKey] = autoD.pct;
     const sub = planSubtotal(planKey);
     const dcto = state.discounts[planKey] || 0;
     const totalConDcto = Math.round(sub * (1 - dcto / 100));
-
     let hintText = "";
     if (sub > 0) {
-      if (state.discountManual[planKey]) {
-        hintText = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
-      } else if (autoD.pct > 0) {
-        hintText = `✓ Dcto. auto ${autoD.pct}% · ${autoD.reason}`;
-      } else {
-        hintText = `Sin dcto. aún · ${autoD.reason}`;
-      }
+      if (state.discountManual[planKey]) hintText = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
+      else if (autoD.pct > 0) hintText = `✓ Dcto. auto ${autoD.pct}% · ${autoD.reason}`;
+      else hintText = `Sin dcto. aún · ${autoD.reason}`;
     }
-
     const preciosHTML = sub > 0 ? `
       <div class="plan-precio-subtotal">
         <span class="plan-precio-label">Subtotal</span>
@@ -405,9 +390,7 @@ function renderPlanBuilder() {
       <div class="plan-precio-total" id="total-wrap-${planKey}" style="display:none">
         <span class="plan-precio-label"></span>
         <span class="plan-precio-val plan-precio-total-val" id="total-${planKey}"></span>
-      </div>`}
-    ` : "";
-
+      </div>`}` : "";
     col.innerHTML = `
       <div class="plan-col-head plan-head-${planKey}">
         <div class="plan-col-title">${PLAN_LABELS[planKey]}</div>
@@ -415,50 +398,43 @@ function renderPlanBuilder() {
         <div class="plan-discount-row">
           <span class="plan-dcto-label">Dcto:</span>
           <div class="plan-dcto-wrap">
-            <input
-              type="number" class="plan-dcto-input"
-              value="${dcto}" min="0" max="100" step="0.5"
+            <input type="number" class="plan-dcto-input" value="${dcto}" min="0" max="100" step="0.5"
               data-plan="${planKey}"
               onchange="setPlanDiscount('${planKey}', this.value)"
-              oninput="setPlanDiscount('${planKey}', this.value)"
-            />
+              oninput="setPlanDiscount('${planKey}', this.value)"/>
             <span class="plan-dcto-pct">%</span>
           </div>
         </div>
         ${sub > 0 ? `<div class="plan-auto-hint" title="${autoD.reason}">${hintText}</div>` : ""}
       </div>
       <div class="plan-drop-zone" data-plan="${planKey}" id="drop-${planKey}">
-        ${state.plans[planKey].size === 0
-          ? '<div class="plan-drop-hint">Arrastra ítems del carrito aquí</div>'
-          : ""}
+        ${state.plans[planKey].size === 0 ? '<div class="plan-drop-hint">Arrastra ítems del carrito aquí</div>' : ""}
       </div>
     `;
-
     const dropZone = col.querySelector(".plan-drop-zone");
     state.plans[planKey].forEach(id => {
       const def = getItemDef(id);
       if (!def) return;
       const effectiveMoment = getEffectiveMoment(id);
       const price = getItemPrice(id, planKey);
+      const isGift = state.gifts.has(id);
       const pill = document.createElement("div");
-      pill.className = "plan-item-pill";
+      pill.className = `plan-item-pill${isGift ? " pill-gift" : ""}`;
       pill.draggable = true;
       pill.dataset.id = id;
       pill.dataset.plan = planKey;
-
       const polvoraCtrl = id === POLVORA_ID ? `
         <div class="pill-polvora-ctrl">
           <button class="polvora-btn polvora-btn-sm" onclick="changePlanPolvoraQty('${planKey}',-1);event.stopPropagation()">−</button>
           <span class="pill-polvora-qty" id="polvora-qty-${planKey}">${state.polvoraQty[planKey]}</span>
           <button class="polvora-btn polvora-btn-sm" onclick="changePlanPolvoraQty('${planKey}',1);event.stopPropagation()">+</button>
           <span class="pill-polvora-label">disp.</span>
-        </div>
-      ` : "";
-
-      const priceDisplay = id === POLVORA_ID
-        ? `<span class="pill-price" id="polvora-price-${planKey}">${fmt(price)}</span>`
-        : `<span class="pill-price">${price ? fmt(price) : "—"}</span>`;
-
+        </div>` : "";
+      const priceDisplay = isGift
+        ? `<span class="pill-gift-tag">🎁 Obsequio</span>`
+        : id === POLVORA_ID
+          ? `<span class="pill-price" id="polvora-price-${planKey}">${fmt(price)}</span>`
+          : `<span class="pill-price">${price ? fmt(price) : "—"}</span>`;
       pill.innerHTML = `
         <div class="pill-left">
           <span class="pill-moment-icon">${MOMENT_ICONS[effectiveMoment] || "🎵"}</span>
@@ -470,18 +446,23 @@ function renderPlanBuilder() {
         </div>
         <button class="pill-remove" onclick="removeFromPlan('${planKey}','${id}')" title="Quitar del plan">✕</button>
       `;
-
+      pill.addEventListener("click", e => {
+        if (!state.wandActive) return;
+        if (e.target.classList.contains("pill-remove") || e.target.classList.contains("polvora-btn-sm")) return;
+        e.preventDefault(); e.stopPropagation();
+        toggleGift(id);
+      });
       pill.addEventListener("dragstart", e => {
-        state.drag.id = id;
-        state.drag.sourcePlan = planKey;
+        if (state.wandActive) { e.preventDefault(); return; }
+        state.drag.id = id; state.drag.sourcePlan = planKey;
         e.dataTransfer.effectAllowed = "move";
         pill.classList.add("dragging");
       });
       pill.addEventListener("dragend", () => pill.classList.remove("dragging"));
       dropZone.appendChild(pill);
     });
-
     col.addEventListener("dragover", e => {
+      if (state.wandActive) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = state.drag.sourcePlan ? "move" : "copy";
       col.classList.add("drag-over");
@@ -490,6 +471,7 @@ function renderPlanBuilder() {
       if (!col.contains(e.relatedTarget)) col.classList.remove("drag-over");
     });
     col.addEventListener("drop", e => {
+      if (state.wandActive) return;
       e.preventDefault();
       col.classList.remove("drag-over");
       const id = state.drag.id;
@@ -497,16 +479,13 @@ function renderPlanBuilder() {
       if (!id || !state.cart[id]) return;
       if (sourcePlan && sourcePlan !== planKey) state.plans[sourcePlan].delete(id);
       state.plans[planKey].add(id);
-      state.drag.id = null;
-      state.drag.sourcePlan = null;
+      state.drag.id = null; state.drag.sourcePlan = null;
       renderPlanBuilder();
     });
-
     container.appendChild(col);
   });
 }
 
-// ── RECALCULAR HEADER PLAN ──────────────────────────────────
 function recalcPlanHeader(planKey) {
   const autoD = calcAutoDiscount(planKey);
   if (!state.discountManual[planKey]) {
@@ -514,14 +493,11 @@ function recalcPlanHeader(planKey) {
     const inputEl = document.querySelector(`.plan-col-${planKey} .plan-dcto-input`);
     if (inputEl) inputEl.value = autoD.pct;
   }
-
   const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey] || 0;
   const totalConDcto = Math.round(sub * (1 - dcto / 100));
-
   const subEl = document.getElementById(`subtotal-${planKey}`);
   if (subEl) subEl.textContent = fmt(sub);
-
   const totalEl = document.getElementById(`total-${planKey}`);
   const totalWrap = document.getElementById(`total-wrap-${planKey}`);
   if (totalEl) {
@@ -534,20 +510,14 @@ function recalcPlanHeader(planKey) {
       if (totalWrap) totalWrap.style.display = "none";
     }
   }
-
   const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (hintEl) {
-    if (state.discountManual[planKey]) {
-      hintEl.textContent = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
-    } else if (autoD.pct > 0) {
-      hintEl.textContent = `✓ Dcto. auto ${autoD.pct}% · ${autoD.reason}`;
-    } else {
-      hintEl.textContent = `Sin dcto. aún · ${autoD.reason}`;
-    }
+    if (state.discountManual[planKey]) hintEl.textContent = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
+    else if (autoD.pct > 0) hintEl.textContent = `✓ Dcto. auto ${autoD.pct}% · ${autoD.reason}`;
+    else hintEl.textContent = `Sin dcto. aún · ${autoD.reason}`;
   }
 }
 
-// ── PÓLVORA POR PLAN ────────────────────────────────────────
 function changePlanPolvoraQty(planKey, delta) {
   state.polvoraQty[planKey] = Math.max(2, (state.polvoraQty[planKey] || 2) + delta * 2);
   const qEl = document.getElementById(`polvora-qty-${planKey}`);
@@ -557,16 +527,13 @@ function changePlanPolvoraQty(planKey, delta) {
   recalcPlanHeader(planKey);
 }
 
-// ── DESCUENTO MANUAL ────────────────────────────────────────
 function setPlanDiscount(planKey, value) {
   state.discounts[planKey] = parseFloat(value) || 0;
   state.discountManual[planKey] = true;
-
   const sub = planSubtotal(planKey);
   const dcto = state.discounts[planKey];
   const totalConDcto = Math.round(sub * (1 - dcto / 100));
   const autoD = calcAutoDiscount(planKey);
-
   const totalEl = document.getElementById(`total-${planKey}`);
   const totalWrap = document.getElementById(`total-wrap-${planKey}`);
   if (totalEl) {
@@ -579,7 +546,6 @@ function setPlanDiscount(planKey, value) {
       if (totalWrap) totalWrap.style.display = "none";
     }
   }
-
   const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (hintEl) hintEl.textContent = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
 }
@@ -589,51 +555,39 @@ function removeFromPlan(planKey, id) {
   renderPlanBuilder();
 }
 
-// ── TABS ────────────────────────────────────────────────────
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      switchTab(btn.dataset.moment);
-    });
+    btn.addEventListener("click", () => switchTab(btn.dataset.moment));
   });
 }
 
-// ── CEREMONY UI ─────────────────────────────────────────────
 function updateCeremonyUI() {
   const badge = document.getElementById("ceremony-badge");
   const note  = document.getElementById("sound-note");
   const isCatolica = state.event.ceremonyType === "catolica";
   const isBautizo  = state.event.type === "bautizo";
   const cfg = EVENT_CONFIG[state.event.type] || EVENT_CONFIG["matrimonio"];
-
-  // Badge
   if (badge) {
-    if (!cfg.hasCeremonia) {
-      badge.textContent = "";
-    } else {
+    if (!cfg.hasCeremonia) { badge.textContent = ""; }
+    else {
       const labels = { simbolica: "Simbólica", cristiana: "Cristiana", catolica: "Católica (Capilla)" };
       badge.textContent = labels[state.event.ceremonyType] || "";
     }
   }
-
-  // Nota de sonido
   if (note) {
     const showNote = isCatolica || isBautizo;
     note.style.display = showNote ? "block" : "none";
     if (showNote) note.textContent = "En capilla católica el sonido de ceremonia no se cobra.";
   }
-
-  // Quitar sonido del carrito si aplica
   if ((isCatolica || isBautizo) && state.cart["c-sonido"]) {
     delete state.cart["c-sonido"];
+    state.gifts.delete("c-sonido");
     ["basico","elite","premium"].forEach(p => state.plans[p].delete("c-sonido"));
   }
 }
 
-// ── CONFIG MODAL ─────────────────────────────────────────────
 function setupConfig() {
   document.getElementById("btn-open-config").addEventListener("click", () => {
-    // Sincronizar valores actuales al abrir
     document.getElementById("cfg-event-type").value = state.event.type;
     document.getElementById("cfg-couple").value = state.event.couple;
     document.getElementById("cfg-city").value = state.event.city;
@@ -643,16 +597,10 @@ function setupConfig() {
     updateCeremonyConfigBlock();
     document.getElementById("modal-config").classList.add("open");
   });
-
-  // Cuando cambia tipo de evento en el modal, actualizar opciones de ceremonia
-  document.getElementById("cfg-event-type").addEventListener("change", () => {
-    updateCeremonyConfigBlock();
-  });
-
+  document.getElementById("cfg-event-type").addEventListener("change", updateCeremonyConfigBlock);
   document.getElementById("btn-close-config").addEventListener("click", () => {
     document.getElementById("modal-config").classList.remove("open");
   });
-
   document.getElementById("btn-save-config").addEventListener("click", () => {
     state.event.type = document.getElementById("cfg-event-type").value;
     state.event.couple = document.getElementById("cfg-couple").value;
@@ -660,14 +608,8 @@ function setupConfig() {
     state.event.date = document.getElementById("cfg-date").value;
     state.event.start = document.getElementById("cfg-start").value;
     state.event.end = document.getElementById("cfg-end").value;
-
     const cfg = EVENT_CONFIG[state.event.type] || EVENT_CONFIG["matrimonio"];
-    if (cfg.hasCeremonia) {
-      state.event.ceremonyType = document.getElementById("cfg-ceremony").value;
-    } else {
-      state.event.ceremonyType = "";
-    }
-
+    state.event.ceremonyType = cfg.hasCeremonia ? document.getElementById("cfg-ceremony").value : "";
     document.getElementById("modal-config").classList.remove("open");
     updateHeaderDisplay();
     updateEventTypeUI();
@@ -678,25 +620,18 @@ function setupConfig() {
   });
 }
 
-// Actualiza el bloque de ceremonia en el modal según tipo de evento seleccionado
 function updateCeremonyConfigBlock() {
   const selectedType = document.getElementById("cfg-event-type").value;
   const cfg = EVENT_CONFIG[selectedType] || EVENT_CONFIG["matrimonio"];
   const block = document.getElementById("ceremony-config-block");
   const select = document.getElementById("cfg-ceremony");
-
   block.style.display = cfg.hasCeremonia ? "" : "none";
-
   if (cfg.hasCeremonia) {
     const labels = { simbolica: "Simbólica", cristiana: "Cristiana", catolica: "Católica (capilla)" };
     select.innerHTML = cfg.ceremonyOptions.map(opt =>
       `<option value="${opt}" ${state.event.ceremonyType === opt ? "selected" : ""}>${labels[opt]}</option>`
     ).join("");
-
-    // Si solo hay una opción (bautizo), seleccionarla automáticamente
-    if (cfg.ceremonyOptions.length === 1) {
-      select.value = cfg.ceremonyOptions[0];
-    }
+    if (cfg.ceremonyOptions.length === 1) select.value = cfg.ceremonyOptions[0];
   }
 }
 
@@ -711,7 +646,6 @@ function updateHeaderDisplay() {
   }
 }
 
-// ── SHARED FOOTER HTML ──────────────────────────────────────
 function sharedFooterHTML() {
   return `
     <div class="quote-footer-shared">
@@ -726,24 +660,16 @@ function sharedFooterHTML() {
       <span>📞 +57 3114513734</span>
       <span>📞 +57 3143568232</span>
       <span>✉ digitalstringsmusic@gmail.com</span>
-    </div>
-  `;
+    </div>`;
 }
 
-// ── GENERATE QUOTE ──────────────────────────────────────────
 function generateQuote() {
   const hasItems = PLAN_KEYS.some(p => state.plans[p].size > 0);
-  if (!hasItems) {
-    alert("Arrastra al menos un ítem a los planes antes de generar la cotización.");
-    return;
-  }
-
+  if (!hasItems) { alert("Arrastra al menos un ítem a los planes antes de generar la cotización."); return; }
+  if (state.wandActive) toggleWand();
   const ev = state.event;
   const cfg = EVENT_CONFIG[ev.type] || EVENT_CONFIG["matrimonio"];
-
-  let html = `<div class="quote-page quote-page-1">`;
-  html += `<div class="quote-page-body">`;
-
+  let html = `<div class="quote-page quote-page-1"><div class="quote-page-body">`;
   html += `
     <div class="quote-doc-header">
       <div class="qdh-left">
@@ -755,24 +681,16 @@ function generateQuote() {
           ${ev.start && ev.end ? `&nbsp;·&nbsp; Hora: ${formatTime(ev.start)} – ${formatTime(ev.end)}` : ""}
         </div>
       </div>
-      <div class="qdh-right">
-        <div class="quote-logo-circle">
-          <img src="logo.png" alt="Digital Strings" />
-        </div>
-      </div>
+      <div class="qdh-right"><div class="quote-logo-circle"><img src="logo.png" alt="Digital Strings" /></div></div>
     </div>
     <div class="quote-divider"></div>
     <div class="quote-plans-label">PROPUESTA DE PLANES</div>
-    <div class="quote-plans">
-  `;
-
+    <div class="quote-plans">`;
   PLAN_KEYS.forEach(key => {
     const ids = [...state.plans[key]];
     if (ids.length === 0) return;
-
     let subtotal = 0;
     const byMoment = {};
-
     ids.forEach(id => {
       const def = getItemDef(id);
       if (!def) return;
@@ -780,34 +698,33 @@ function generateQuote() {
       subtotal += price;
       const m = getEffectiveMoment(id);
       if (!byMoment[m]) byMoment[m] = [];
-      byMoment[m].push({ def, price, id });
+      byMoment[m].push({ def, price, id, isGift: state.gifts.has(id) });
     });
-
     const dcto = state.discounts[key] || 0;
     const total = Math.round(subtotal * (1 - dcto / 100));
-
     html += `<div class="plan-card plan-${key}">
       <div class="plan-head"><h4>${PLAN_LABELS[key]}</h4></div>
       <div class="plan-body">`;
-
     MOMENT_ORDER.forEach(moment => {
       const mItems = byMoment[moment];
       if (!mItems || mItems.length === 0) return;
       html += `<div class="plan-moment-group">
         <div class="plan-moment-label">${MOMENT_ICONS[moment]} ${MOMENT_LABELS[moment].toUpperCase()}</div>`;
-      mItems.forEach(({ def, price, id }) => {
+      mItems.forEach(({ def, price, id, isGift }) => {
         const hrs = def.horas ? `${def.horas}h` : (def.duracion || "");
         const qty = state.polvoraQty[key] || 2;
         const nameDisplay = id === POLVORA_ID ? `${def.nombre} x${qty}` : def.nombre;
+        const priceDisplay = isGift
+          ? `<span class="pi-gift">🎁 Obsequio</span>`
+          : `<span class="pi-price">${price ? fmt(price) : "—"}</span>`;
         html += `<div class="plan-item-row">
           <span class="pi-name">${nameDisplay}</span>
           <span class="pi-hrs">${hrs}</span>
-          <span class="pi-price">${price ? fmt(price) : "—"}</span>
+          ${priceDisplay}
         </div>`;
       });
       html += `</div>`;
     });
-
     html += `</div>
       <div class="plan-footer">
         <div class="plan-subtotal-row">Subtotal <strong>${fmt(subtotal)}</strong></div>
@@ -819,18 +736,8 @@ function generateQuote() {
       </div>
     </div>`;
   });
-
-  html += `</div>`; // end quote-plans
-  html += `</div>`; // end quote-page-body
-
-  // Footer fijo al fondo de la página 1
-  html += `<div class="quote-page-footer">${sharedFooterHTML()}</div>`;
-  html += `</div>`; // end page 1
-
-  // ── PÁGINA 2 ────────────────────────────────────────────
-  html += `<div class="quote-page quote-page-2">`;
-  html += `<div class="quote-page-body">`;
-  html += `
+  html += `</div></div><div class="quote-page-footer">${sharedFooterHTML()}</div></div>`;
+  html += `<div class="quote-page quote-page-2"><div class="quote-page-body">
     <div class="considerations-block">
       <h3 class="considerations-title">CONSIDERACIONES</h3>
       <div class="considerations-divider"></div>
@@ -842,31 +749,21 @@ function generateQuote() {
         <li><strong>Alimentación del equipo:</strong> En caso de que el evento se desarrolle durante la noche o afecte el horario habitual de comida, se deberá proporcionar cena para el equipo de Digital Strings, garantizando condiciones adecuadas de alimentación para el correcto desempeño de sus funciones.</li>
       </ul>
     </div>
-    <div class="p2-footer-center">
-      <img src="QR.png" alt="QR" class="qr-img">
-    </div>
-  `;
-  html += `</div>`; // end quote-page-body
-
-  // Footer fijo al fondo de la página 2
-  html += `<div class="quote-page-footer">${sharedFooterHTML()}</div>`;
-  html += `</div>`; // end page 2
-
+    <div class="p2-footer-center"><img src="QR.png" alt="QR" class="qr-img"></div>
+  </div><div class="quote-page-footer">${sharedFooterHTML()}</div></div>`;
   document.getElementById("quote-content").innerHTML = html;
   document.getElementById("quote-output").style.display = "block";
   window.scrollTo(0, 0);
 }
 
-// ── CLEAR ────────────────────────────────────────────────────
 document.getElementById("btn-clear-cart").addEventListener("click", () => {
   if (confirm("¿Limpiar todo el carrito y los planes?")) {
-    state.cart = {};
+    state.cart = {}; state.gifts = new Set();
     state.plans = { basico: new Set(), elite: new Set(), premium: new Set() };
     state.discounts = { basico: 0, elite: 0, premium: 0 };
     state.discountManual = { basico: false, elite: false, premium: false };
-    renderCart();
-    renderAllGrids();
-    renderPlanBuilder();
+    if (state.wandActive) toggleWand();
+    renderCart(); renderAllGrids(); renderPlanBuilder();
   }
 });
 
@@ -879,17 +776,16 @@ document.getElementById("btn-clear-plans")?.addEventListener("click", () => {
   }
 });
 
-// ── PRINT / CLOSE ────────────────────────────────────────────
 document.getElementById("btn-print").addEventListener("click", () => window.print());
 document.getElementById("btn-close-quote").addEventListener("click", () => {
   document.getElementById("quote-output").style.display = "none";
 });
 document.getElementById("btn-generate").addEventListener("click", generateQuote);
 
-// ── INIT ─────────────────────────────────────────────────────
 function init() {
   setupTabs();
   setupConfig();
+  document.getElementById("btn-wand").addEventListener("click", toggleWand);
   renderAllGrids();
   updateEventTypeUI();
   updateCeremonyUI();

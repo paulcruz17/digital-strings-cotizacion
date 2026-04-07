@@ -262,6 +262,68 @@ body {
 }
 .btn-remove-item:hover { color: var(--orange-dark); }
 
+/* ── VARITA MÁGICA ── */
+.cart-header-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-wand {
+  background: none; border: 1.5px solid var(--border);
+  border-radius: 6px; padding: 4px 8px; font-size: 1rem;
+  cursor: pointer; transition: all 0.2s; line-height: 1;
+  color: var(--dark);
+}
+.btn-wand:hover { border-color: var(--orange); background: var(--orange-light); }
+.btn-wand.wand-active {
+  background: var(--orange); border-color: var(--orange-dark);
+  box-shadow: 0 0 0 3px rgba(254,176,93,0.35);
+  animation: wand-pulse 1.2s ease-in-out infinite;
+}
+@keyframes wand-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(254,176,93,0.35); }
+  50%       { box-shadow: 0 0 0 7px rgba(254,176,93,0.10); }
+}
+
+/* Cursor varita activa */
+.wand-cursor,
+.wand-cursor * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E🪄%3C/text%3E%3C/svg%3E") 4 28, crosshair !important; }
+
+/* Tip de varita activa */
+.wand-tip {
+  font-size: 0.65rem; color: var(--orange-dark);
+  background: var(--orange-light); border: 1px solid var(--orange);
+  border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; line-height: 1.5;
+}
+
+/* Ítem del carrito marcado como obsequio */
+.cart-item-gift {
+  background: #fffbe8 !important;
+  border: 1.5px solid var(--orange) !important;
+  box-shadow: 0 0 0 2px rgba(254,176,93,0.18);
+}
+.gift-badge {
+  display: inline-block; font-size: 0.6rem; font-weight: 700;
+  color: var(--orange-dark); background: var(--orange-light);
+  border: 1px solid var(--orange); border-radius: 10px;
+  padding: 1px 6px; margin-right: 4px; letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* Pill de plan marcada como obsequio */
+.pill-gift {
+  background: #fffbe8 !important;
+  border-color: var(--orange) !important;
+}
+.pill-gift-tag {
+  font-size: 0.6rem; font-weight: 700; color: var(--orange-dark);
+  display: block; margin-top: 2px;
+}
+
+/* Ítem obsequio en la cotización impresa */
+.pi-gift {
+  font-size: 0.62rem; font-weight: 700; color: var(--orange-dark);
+  text-align: right; white-space: nowrap;
+}
+
 /* ── PLAN AUTO-HINT ── */
 .plan-auto-hint {
   font-size: 0.55rem; font-style: italic; margin-top: 3px; opacity: 0.8;

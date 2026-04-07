@@ -129,7 +129,13 @@
     <aside class="cart-panel">
       <div class="cart-header">
         <h3>🛒 Carrito</h3>
-        <button class="btn-clear" id="btn-clear-cart">Limpiar todo</button>
+        <div class="cart-header-actions">
+          <button class="btn-wand" id="btn-wand" title="🪄 Varita mágica — obsequiar un ítem">🪄</button>
+          <button class="btn-clear" id="btn-clear-cart">Limpiar todo</button>
+        </div>
+      </div>
+      <div class="wand-tip" id="wand-tip" style="display:none">
+        ✨ Varita activa — haz clic en cualquier ítem del carrito o plan para marcarlo como <strong>obsequio</strong>. Vuelve a hacer clic para quitar el obsequio.
       </div>
       <div class="cart-tip">
         Agrega ítems y luego <strong>arrastra al plan</strong> correspondiente abajo.
