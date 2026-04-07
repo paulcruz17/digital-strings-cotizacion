@@ -453,11 +453,24 @@ body {
 /* ── QUOTE PAGES ── */
 .quote-page {
   background: var(--pure-white);
-  padding: 2.5rem 3rem;
   box-shadow: 0 4px 24px rgba(43,42,42,0.12);
+  display: flex;
+  flex-direction: column;
 }
 .quote-page-1 { border-radius: 0 0 4px 4px; margin-bottom: 8px; }
 .quote-page-2 { border-radius: 4px; margin-top: 4px; }
+
+/* Cuerpo de la página (contenido principal, crece para empujar el footer abajo) */
+.quote-page-body {
+  flex: 1;
+  padding: 2.5rem 3rem 1rem;
+}
+
+/* Footer siempre al fondo de la página */
+.quote-page-footer {
+  padding: 0 3rem 1.5rem;
+  margin-top: auto;
+}
 
 /* ── PAGE 1 ── */
 .quote-doc-header {
@@ -584,30 +597,51 @@ body {
   }
   .quote-inner { max-width: 100% !important; background: white !important; }
 
-  .quote-page-1 {
-    padding: 1.8cm 2cm !important;
+  /* Cada página ocupa exactamente una hoja A4 y usa flex para empujar el footer al fondo */
+  .quote-page-1,
+  .quote-page-2 {
     box-shadow: none !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    width: 100%;
+    height: 297mm;          /* altura exacta A4 */
+    display: flex !important;
+    flex-direction: column !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .quote-page-1 {
     page-break-after: always;
     break-after: page;
-    min-height: 100vh;
   }
   .quote-page-2 {
-    padding: 1.8cm 2cm !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
     page-break-before: always;
     break-before: page;
-    min-height: 100vh;
+  }
+
+  /* Cuerpo: ocupa todo el espacio disponible, empuja el footer abajo */
+  .quote-page-body {
+    flex: 1 !important;
+    padding: 1.4cm 2cm 0.5cm !important;
+    overflow: hidden;
+  }
+
+  /* Footer: siempre pegado al fondo de la hoja */
+  .quote-page-footer {
+    margin-top: auto !important;
+    padding: 0 2cm 1cm !important;
+  }
+
+  /* Quitar margin-top del footer compartido ya que el padding lo maneja */
+  .quote-page-footer .quote-footer-shared {
+    margin-top: 0 !important;
   }
 
   .quote-plans { grid-template-columns: repeat(3, 1fr) !important; }
   .plan-total-val { font-size: 1.1rem !important; }
 
-  .plan-card.plan-elite .plan-head   { background: #3a3838 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .plan-card.plan-premium .plan-head { background: #2B2A2A !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .plan-card.plan-elite .plan-head   { background: #3a3838 !important; }
+  .plan-card.plan-premium .plan-head { background: #2B2A2A !important; }
   .plan-card.plan-premium .plan-total-val { color: var(--orange-dark) !important; }
   .plan-card.plan-elite .plan-total-val   { color: var(--orange-dark) !important; }
 }

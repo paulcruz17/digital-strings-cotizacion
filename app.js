@@ -1,12 +1,64 @@
+// ============================================================
+//  DIGITAL STRINGS — APP LOGIC v9
+//  - Tipos de evento: matrimonio, xv-años, bautizo, privado, empresarial
+//  - Tab Ceremonia: visible/oculto según tipo de evento
+//  - Bautizo: siempre en capilla (no se cobra sonido ceremonia)
+//  - XV Años: sin tab Ceremonia
+//  - Footer fijo al fondo en impresión
+// ============================================================
+
+// ── CONFIGURACIÓN POR TIPO DE EVENTO ──────────────────────
+const EVENT_CONFIG = {
+  "matrimonio": {
+    label: "COTIZACIÓN MATRIMONIO",
+    hasCeremonia: true,
+    ceremonyOptions: ["simbolica","cristiana","catolica"],
+    defaultCeremony: "simbolica"
+  },
+  "xv-anos": {
+    label: "COTIZACIÓN XV AÑOS",
+    hasCeremonia: false,
+    ceremonyOptions: [],
+    defaultCeremony: ""
+  },
+  "bautizo": {
+    label: "COTIZACIÓN BAUTIZO",
+    hasCeremonia: true,
+    ceremonyOptions: ["catolica"],
+    defaultCeremony: "catolica"   // bautizo siempre en capilla
+  },
+  "privado": {
+    label: "COTIZACIÓN EVENTO PRIVADO",
+    hasCeremonia: true,
+    ceremonyOptions: ["simbolica","cristiana","catolica"],
+    defaultCeremony: "simbolica"
+  },
+  "empresarial": {
+    label: "COTIZACIÓN EVENTO EMPRESARIAL",
+    hasCeremonia: true,
+    ceremonyOptions: ["simbolica","cristiana","catolica"],
+    defaultCeremony: "simbolica"
+  }
+};
+
+const EVENT_TYPE_LABELS = {
+  "matrimonio":  "💍 MATRIMONIO",
+  "xv-anos":     "🌹 XV AÑOS",
+  "bautizo":     "✝️ BAUTIZO",
+  "privado":     "🎉 EVENTO PRIVADO",
+  "empresarial": "🏢 EVENTO EMPRESARIAL"
+};
+
 // ── STATE ──────────────────────────────────────────────────
 const state = {
   event: {
+    type: "matrimonio",
     couple: "",
     city: "",
     date: "",
     start: "",
     end: "",
-    ceremonyType: ""
+    ceremonyType: "simbolica"
   },
   cart: {},
   polvoraQty: { catalogo: 2, basico: 2, elite: 4, premium: 6 },
@@ -69,14 +121,6 @@ function getItemPrice(id, planKey) {
 }
 
 // ── AUTO-DISCOUNT LOGIC ────────────────────────────────────
-// Reglas (OR): se cumple con monto O con número de categorías
-//   3%  → subtotal ≥ $6M   O  ítems en ≥ 4 categorías
-//   5%  → subtotal ≥ $7M   O  ítems en ≥ 5 categorías
-//  10%  → subtotal ≥ $11M  O  ítems en las 6 categorías
-//  15%  → subtotal ≥ $15M  (solo monto)
-//  18%  → subtotal ≥ $25M  (solo monto)
-// Categorías válidas: ceremonia, coctel, protocolo, cena, fiesta, iluminacion
-
 const VALID_MOMENTS = ["ceremonia","coctel","protocolo","cena","fiesta","iluminacion"];
 
 function calcAutoDiscount(planKey) {
@@ -91,11 +135,11 @@ function calcAutoDiscount(planKey) {
 
   const cat = coveredMoments.size;
 
-  if (sub >= 25000000)                          return { pct: 18, reason: "Subtotal ≥ $25M" };
-  if (sub >= 15000000)                          return { pct: 15, reason: "Subtotal ≥ $15M" };
-  if (sub >= 11000000 || cat >= 6)              return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
-  if (sub >= 7000000  || cat >= 5)              return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
-  if (sub >= 6000000  || cat >= 4)              return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
+  if (sub >= 25000000)             return { pct: 18, reason: "Subtotal ≥ $25M" };
+  if (sub >= 15000000)             return { pct: 15, reason: "Subtotal ≥ $15M" };
+  if (sub >= 11000000 || cat >= 6) return { pct: 10, reason: cat >= 6 ? "1 ítem en cada categoría" : "Subtotal ≥ $11M" };
+  if (sub >= 7000000  || cat >= 5) return { pct:  5, reason: cat >= 5 ? "5 categorías cubiertas" : "Subtotal ≥ $7M" };
+  if (sub >= 6000000  || cat >= 4) return { pct:  3, reason: cat >= 4 ? "4 categorías cubiertas" : "Subtotal ≥ $6M" };
 
   return { pct: 0, reason: "Sin descuento aún" };
 }
@@ -107,6 +151,53 @@ function planSubtotal(planKey) {
   return sum;
 }
 
+// ── ACTUALIZAR TAB Y SECCIÓN CEREMONIA según tipo de evento ──
+function updateEventTypeUI() {
+  const cfg = EVENT_CONFIG[state.event.type] || EVENT_CONFIG["matrimonio"];
+  const tabCeremonia = document.querySelector('.tab-btn[data-moment="ceremonia"]');
+  const sectionCeremonia = document.getElementById("section-ceremonia");
+  const ceremonyBlock = document.getElementById("ceremony-config-block");
+
+  // Mostrar/ocultar tab Ceremonia
+  if (tabCeremonia) {
+    tabCeremonia.style.display = cfg.hasCeremonia ? "" : "none";
+  }
+
+  // Mostrar/ocultar bloque de configuración de ceremonia en el modal
+  if (ceremonyBlock) {
+    ceremonyBlock.style.display = cfg.hasCeremonia ? "" : "none";
+  }
+
+  // Si el evento no tiene ceremonia y el tab activo es ceremonia, cambiar al primer tab visible
+  if (!cfg.hasCeremonia && state.activeMoment === "ceremonia") {
+    const firstVisible = MOMENT_ORDER.find(m => m !== "ceremonia");
+    if (firstVisible) switchTab(firstVisible);
+  }
+
+  // Actualizar opciones del select de ceremonia en el modal
+  const cfgCeremony = document.getElementById("cfg-ceremony");
+  if (cfgCeremony) {
+    cfgCeremony.innerHTML = cfg.ceremonyOptions.map(opt => {
+      const labels = { simbolica: "Simbólica", cristiana: "Cristiana", catolica: "Católica (capilla)" };
+      return `<option value="${opt}" ${state.event.ceremonyType === opt ? "selected" : ""}>${labels[opt]}</option>`;
+    }).join("");
+  }
+
+  // Actualizar label del header
+  const labelEl = document.getElementById("display-event-type");
+  if (labelEl) labelEl.textContent = EVENT_TYPE_LABELS[state.event.type] || "COTIZACIÓN";
+}
+
+function switchTab(moment) {
+  state.activeMoment = moment;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  const btn = document.querySelector(`.tab-btn[data-moment="${moment}"]`);
+  if (btn) btn.classList.add("active");
+  document.querySelectorAll(".moment-section").forEach(s => s.classList.remove("active"));
+  const sec = document.getElementById(`section-${moment}`);
+  if (sec) sec.classList.add("active");
+}
+
 // ── RENDER GRIDS ────────────────────────────────────────────
 function renderGrid(moment) {
   const items = DB[moment];
@@ -114,8 +205,12 @@ function renderGrid(moment) {
   if (!grid || !items) return;
   grid.innerHTML = "";
 
+  const isCatolica = state.event.ceremonyType === "catolica";
+  const isBautizo  = state.event.type === "bautizo";
+
   items.forEach(item => {
-    if (item.id === "c-sonido" && state.event.ceremonyType === "catolica") return;
+    // En capilla católica o bautizo no se ofrece sonido de ceremonia
+    if (item.id === "c-sonido" && (isCatolica || isBautizo)) return;
 
     const inCart = !!state.cart[item.id];
     const card = document.createElement("div");
@@ -277,10 +372,7 @@ function renderPlanBuilder() {
     col.className = `plan-col plan-col-${planKey}`;
     col.dataset.plan = planKey;
 
-    // Calcular descuento sugerido ANTES de renderizar
     const autoD = calcAutoDiscount(planKey);
-
-    // Si el usuario NO ha tocado el input, auto-aplicar el sugerido
     if (!state.discountManual[planKey]) {
       state.discounts[planKey] = autoD.pct;
     }
@@ -289,7 +381,6 @@ function renderPlanBuilder() {
     const dcto = state.discounts[planKey] || 0;
     const totalConDcto = Math.round(sub * (1 - dcto / 100));
 
-    // Texto del hint
     let hintText = "";
     if (sub > 0) {
       if (state.discountManual[planKey]) {
@@ -301,9 +392,6 @@ function renderPlanBuilder() {
       }
     }
 
-    // Bloque de precios:
-    // - Siempre muestra el SUBTOTAL (precio sin descuento)
-    // - Si hay descuento > 0, también muestra el TOTAL CON DESCUENTO debajo
     const preciosHTML = sub > 0 ? `
       <div class="plan-precio-subtotal">
         <span class="plan-precio-label">Subtotal</span>
@@ -418,7 +506,7 @@ function renderPlanBuilder() {
   });
 }
 
-// ── RECALCULAR HEADER DE UN PLAN SIN RE-RENDER COMPLETO ────
+// ── RECALCULAR HEADER PLAN ──────────────────────────────────
 function recalcPlanHeader(planKey) {
   const autoD = calcAutoDiscount(planKey);
   if (!state.discountManual[planKey]) {
@@ -431,11 +519,9 @@ function recalcPlanHeader(planKey) {
   const dcto = state.discounts[planKey] || 0;
   const totalConDcto = Math.round(sub * (1 - dcto / 100));
 
-  // Actualizar subtotal
   const subEl = document.getElementById(`subtotal-${planKey}`);
   if (subEl) subEl.textContent = fmt(sub);
 
-  // Actualizar total con descuento
   const totalEl = document.getElementById(`total-${planKey}`);
   const totalWrap = document.getElementById(`total-wrap-${planKey}`);
   if (totalEl) {
@@ -449,7 +535,6 @@ function recalcPlanHeader(planKey) {
     }
   }
 
-  // Actualizar hint
   const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (hintEl) {
     if (state.discountManual[planKey]) {
@@ -462,20 +547,17 @@ function recalcPlanHeader(planKey) {
   }
 }
 
-// ── CAMBIAR QTY PÓLVORA POR PLAN ───────────────────────────
+// ── PÓLVORA POR PLAN ────────────────────────────────────────
 function changePlanPolvoraQty(planKey, delta) {
   state.polvoraQty[planKey] = Math.max(2, (state.polvoraQty[planKey] || 2) + delta * 2);
-
   const qEl = document.getElementById(`polvora-qty-${planKey}`);
   if (qEl) qEl.textContent = state.polvoraQty[planKey];
-
   const pEl = document.getElementById(`polvora-price-${planKey}`);
   if (pEl) pEl.textContent = fmt(getPolvoraPrice(planKey));
-
   recalcPlanHeader(planKey);
 }
 
-// ── SET DESCUENTO MANUAL ────────────────────────────────────
+// ── DESCUENTO MANUAL ────────────────────────────────────────
 function setPlanDiscount(planKey, value) {
   state.discounts[planKey] = parseFloat(value) || 0;
   state.discountManual[planKey] = true;
@@ -485,7 +567,6 @@ function setPlanDiscount(planKey, value) {
   const totalConDcto = Math.round(sub * (1 - dcto / 100));
   const autoD = calcAutoDiscount(planKey);
 
-  // Actualizar total con descuento
   const totalEl = document.getElementById(`total-${planKey}`);
   const totalWrap = document.getElementById(`total-wrap-${planKey}`);
   if (totalEl) {
@@ -499,7 +580,6 @@ function setPlanDiscount(planKey, value) {
     }
   }
 
-  // Actualizar hint
   const hintEl = document.querySelector(`.plan-col-${planKey} .plan-auto-hint`);
   if (hintEl) hintEl.textContent = `Sugerido: ${autoD.pct}% · ${autoD.reason}`;
 }
@@ -513,49 +593,84 @@ function removeFromPlan(planKey, id) {
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      const moment = btn.dataset.moment;
-      state.activeMoment = moment;
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      document.querySelectorAll(".moment-section").forEach(s => s.classList.remove("active"));
-      document.getElementById(`section-${moment}`).classList.add("active");
+      switchTab(btn.dataset.moment);
     });
   });
 }
 
-// ── CEREMONY ────────────────────────────────────────────────
+// ── CEREMONY UI ─────────────────────────────────────────────
 function updateCeremonyUI() {
   const badge = document.getElementById("ceremony-badge");
-  const note = document.getElementById("sound-note");
+  const note  = document.getElementById("sound-note");
   const isCatolica = state.event.ceremonyType === "catolica";
-  if (badge) badge.textContent = isCatolica ? "Católica (Capilla)" : state.event.ceremonyType === "simbolica" ? "Simbólica" : state.event.ceremonyType === "xv-años" ? "XV Años" : "Cristiana";
-  if (note) {
-    note.style.display = isCatolica ? "block" : "none";
-    if (isCatolica) note.textContent = "En capilla católica el sonido no se cobra.";
+  const isBautizo  = state.event.type === "bautizo";
+  const cfg = EVENT_CONFIG[state.event.type] || EVENT_CONFIG["matrimonio"];
+
+  // Badge
+  if (badge) {
+    if (!cfg.hasCeremonia) {
+      badge.textContent = "";
+    } else {
+      const labels = { simbolica: "Simbólica", cristiana: "Cristiana", catolica: "Católica (Capilla)" };
+      badge.textContent = labels[state.event.ceremonyType] || "";
+    }
   }
-  if (isCatolica && state.cart["c-sonido"]) {
+
+  // Nota de sonido
+  if (note) {
+    const showNote = isCatolica || isBautizo;
+    note.style.display = showNote ? "block" : "none";
+    if (showNote) note.textContent = "En capilla católica el sonido de ceremonia no se cobra.";
+  }
+
+  // Quitar sonido del carrito si aplica
+  if ((isCatolica || isBautizo) && state.cart["c-sonido"]) {
     delete state.cart["c-sonido"];
     ["basico","elite","premium"].forEach(p => state.plans[p].delete("c-sonido"));
   }
 }
 
-// ── CONFIG ──────────────────────────────────────────────────
+// ── CONFIG MODAL ─────────────────────────────────────────────
 function setupConfig() {
   document.getElementById("btn-open-config").addEventListener("click", () => {
+    // Sincronizar valores actuales al abrir
+    document.getElementById("cfg-event-type").value = state.event.type;
+    document.getElementById("cfg-couple").value = state.event.couple;
+    document.getElementById("cfg-city").value = state.event.city;
+    document.getElementById("cfg-date").value = state.event.date;
+    document.getElementById("cfg-start").value = state.event.start;
+    document.getElementById("cfg-end").value = state.event.end;
+    updateCeremonyConfigBlock();
     document.getElementById("modal-config").classList.add("open");
   });
+
+  // Cuando cambia tipo de evento en el modal, actualizar opciones de ceremonia
+  document.getElementById("cfg-event-type").addEventListener("change", () => {
+    updateCeremonyConfigBlock();
+  });
+
   document.getElementById("btn-close-config").addEventListener("click", () => {
     document.getElementById("modal-config").classList.remove("open");
   });
+
   document.getElementById("btn-save-config").addEventListener("click", () => {
+    state.event.type = document.getElementById("cfg-event-type").value;
     state.event.couple = document.getElementById("cfg-couple").value;
     state.event.city = document.getElementById("cfg-city").value;
     state.event.date = document.getElementById("cfg-date").value;
     state.event.start = document.getElementById("cfg-start").value;
     state.event.end = document.getElementById("cfg-end").value;
-    state.event.ceremonyType = document.getElementById("cfg-ceremony").value;
+
+    const cfg = EVENT_CONFIG[state.event.type] || EVENT_CONFIG["matrimonio"];
+    if (cfg.hasCeremonia) {
+      state.event.ceremonyType = document.getElementById("cfg-ceremony").value;
+    } else {
+      state.event.ceremonyType = "";
+    }
+
     document.getElementById("modal-config").classList.remove("open");
     updateHeaderDisplay();
+    updateEventTypeUI();
     updateCeremonyUI();
     renderAllGrids();
     renderCart();
@@ -563,12 +678,37 @@ function setupConfig() {
   });
 }
 
+// Actualiza el bloque de ceremonia en el modal según tipo de evento seleccionado
+function updateCeremonyConfigBlock() {
+  const selectedType = document.getElementById("cfg-event-type").value;
+  const cfg = EVENT_CONFIG[selectedType] || EVENT_CONFIG["matrimonio"];
+  const block = document.getElementById("ceremony-config-block");
+  const select = document.getElementById("cfg-ceremony");
+
+  block.style.display = cfg.hasCeremonia ? "" : "none";
+
+  if (cfg.hasCeremonia) {
+    const labels = { simbolica: "Simbólica", cristiana: "Cristiana", catolica: "Católica (capilla)" };
+    select.innerHTML = cfg.ceremonyOptions.map(opt =>
+      `<option value="${opt}" ${state.event.ceremonyType === opt ? "selected" : ""}>${labels[opt]}</option>`
+    ).join("");
+
+    // Si solo hay una opción (bautizo), seleccionarla automáticamente
+    if (cfg.ceremonyOptions.length === 1) {
+      select.value = cfg.ceremonyOptions[0];
+    }
+  }
+}
+
 function updateHeaderDisplay() {
   const ev = state.event;
   const coupleEl = document.getElementById("display-couple");
-  const metaEl = document.getElementById("display-meta");
-  if (coupleEl) coupleEl.textContent = ev.couple || "Novios";
-  if (metaEl) metaEl.textContent = `${ev.city} · ${formatDate(ev.date)} · ${formatTime(ev.start)}–${formatTime(ev.end)}`;
+  const metaEl   = document.getElementById("display-meta");
+  if (coupleEl) coupleEl.textContent = ev.couple || "Cliente";
+  if (metaEl) {
+    const parts = [ev.city, formatDate(ev.date), ev.start && ev.end ? `${formatTime(ev.start)}–${formatTime(ev.end)}` : ""].filter(Boolean);
+    metaEl.textContent = parts.join(" · ");
+  }
 }
 
 // ── SHARED FOOTER HTML ──────────────────────────────────────
@@ -599,16 +739,20 @@ function generateQuote() {
   }
 
   const ev = state.event;
+  const cfg = EVENT_CONFIG[ev.type] || EVENT_CONFIG["matrimonio"];
 
   let html = `<div class="quote-page quote-page-1">`;
+  html += `<div class="quote-page-body">`;
 
   html += `
     <div class="quote-doc-header">
       <div class="qdh-left">
-        <div class="qdh-label">COTIZACIÓN MATRIMONIO</div>
-        <div class="q-couple">${ev.couple}</div>
+        <div class="qdh-label">${cfg.label}</div>
+        <div class="q-couple">${ev.couple || "—"}</div>
         <div class="q-meta">
-          Lugar: ${ev.city} &nbsp;·&nbsp; Fecha: ${formatDate(ev.date)} &nbsp;·&nbsp; Hora: ${formatTime(ev.start)} – ${formatTime(ev.end)}
+          ${ev.city ? `Lugar: ${ev.city}` : ""}
+          ${ev.date ? `&nbsp;·&nbsp; Fecha: ${formatDate(ev.date)}` : ""}
+          ${ev.start && ev.end ? `&nbsp;·&nbsp; Hora: ${formatTime(ev.start)} – ${formatTime(ev.end)}` : ""}
         </div>
       </div>
       <div class="qdh-right">
@@ -676,11 +820,16 @@ function generateQuote() {
     </div>`;
   });
 
-  html += `</div>`;
-  html += sharedFooterHTML();
-  html += `</div>`;
+  html += `</div>`; // end quote-plans
+  html += `</div>`; // end quote-page-body
 
+  // Footer fijo al fondo de la página 1
+  html += `<div class="quote-page-footer">${sharedFooterHTML()}</div>`;
+  html += `</div>`; // end page 1
+
+  // ── PÁGINA 2 ────────────────────────────────────────────
   html += `<div class="quote-page quote-page-2">`;
+  html += `<div class="quote-page-body">`;
   html += `
     <div class="considerations-block">
       <h3 class="considerations-title">CONSIDERACIONES</h3>
@@ -697,8 +846,11 @@ function generateQuote() {
       <img src="QR.png" alt="QR" class="qr-img">
     </div>
   `;
-  html += sharedFooterHTML();
-  html += `</div>`;
+  html += `</div>`; // end quote-page-body
+
+  // Footer fijo al fondo de la página 2
+  html += `<div class="quote-page-footer">${sharedFooterHTML()}</div>`;
+  html += `</div>`; // end page 2
 
   document.getElementById("quote-content").innerHTML = html;
   document.getElementById("quote-output").style.display = "block";
@@ -739,17 +891,9 @@ function init() {
   setupTabs();
   setupConfig();
   renderAllGrids();
+  updateEventTypeUI();
   updateCeremonyUI();
   updateHeaderDisplay();
-
-  document.getElementById("cfg-couple").value = state.event.couple;
-  document.getElementById("cfg-city").value = state.event.city;
-  document.getElementById("cfg-date").value = state.event.date;
-  document.getElementById("cfg-start").value = state.event.start;
-  document.getElementById("cfg-end").value = state.event.end;
-  if (document.getElementById("cfg-ceremony"))
-    document.getElementById("cfg-ceremony").value = state.event.ceremonyType;
-
   renderPlanBuilder();
 }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Digital Strings — Cotizador Matrimonio</title>
+  <title>Digital Strings — Cotizador</title>
   <link rel="stylesheet" href="styles.css" />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
 </head>
@@ -22,11 +22,11 @@
         </div>
       </div>
       <div class="header-event">
-        <div class="event-label">COTIZACIÓN</div>
+        <div class="event-label" id="display-event-type">COTIZACIÓN</div>
         <div class="event-couple" id="display-couple"></div>
         <div class="event-meta" id="display-meta"></div>
       </div>
-      <button class="btn-config" id="btn-open-config">INf - EVENTO</button>
+      <button class="btn-config" id="btn-open-config">INF - EVENTO</button>
     </div>
   </header>
 
@@ -34,23 +34,41 @@
   <div class="modal-overlay" id="modal-config">
     <div class="modal-box">
       <h2 class="modal-title">Datos del Evento</h2>
-      <label>Novios</label>
-      <input type="text" id="cfg-couple" value="Daniela & Angelo" />
+
+      <label>Tipo de Evento</label>
+      <select id="cfg-event-type">
+        <option value="matrimonio">💍 Matrimonio</option>
+        <option value="xv-anos">🌹 XV Años</option>
+        <option value="bautizo">✝️ Bautizo</option>
+        <option value="privado">🎉 Evento Privado</option>
+        <option value="empresarial">🏢 Evento Empresarial</option>
+      </select>
+
+      <label>Nombre / Cliente</label>
+      <input type="text" id="cfg-couple" placeholder="Ej: Daniela & Angelo" />
+
       <label>Ciudad</label>
       <input type="text" id="cfg-city" value="Bogotá" />
+
       <label>Fecha</label>
-      <input type="date" id="cfg-date" value="2027-03-21" />
+      <input type="date" id="cfg-date" />
+
       <label>Hora inicio</label>
       <input type="time" id="cfg-start" value="16:00" />
+
       <label>Hora fin</label>
       <input type="time" id="cfg-end" value="01:00" />
-      <label>Tipo de ceremonia</label>
-      <select id="cfg-ceremony">
-        <option value="simbolica" selected>Simbólica</option>
-        <option value="cristiana">Cristiana</option>
-        <option value="catolica">Católica (capilla)</option>
-        <option value="xv-años">XV Años</option>
-      </select>
+
+      <!-- Ceremonia: visible solo para tipos que la permiten -->
+      <div id="ceremony-config-block">
+        <label>Tipo de Ceremonia</label>
+        <select id="cfg-ceremony">
+          <option value="simbolica">Simbólica</option>
+          <option value="cristiana">Cristiana</option>
+          <option value="catolica">Católica (capilla)</option>
+        </select>
+      </div>
+
       <div class="modal-actions">
         <button class="btn-secondary" id="btn-close-config">Cancelar</button>
         <button class="btn-primary" id="btn-save-config">Guardar</button>
@@ -63,13 +81,13 @@
 
     <!-- LEFT: CATALOG -->
     <section class="moments-panel">
-      <div class="moment-tabs">
+      <div class="moment-tabs" id="moment-tabs">
         <button class="tab-btn active" data-moment="ceremonia">🎻 Ceremonia</button>
         <button class="tab-btn" data-moment="coctel">🥂 Cóctel</button>
         <button class="tab-btn" data-moment="protocolo">🎩 Protocolo</button>
         <button class="tab-btn" data-moment="cena">🍽 Cena</button>
         <button class="tab-btn" data-moment="fiesta">🎉 Fiesta</button>
-        <button class="tab-btn" data-moment="iluminacion">🎧💡 Sonido e Iluminación</button>
+        <button class="tab-btn" data-moment="iluminacion">🎧💡 Audio e Iluminación</button>
       </div>
 
       <div class="moment-section active" id="section-ceremonia">
@@ -102,8 +120,7 @@
       </div>
 
       <div class="moment-section" id="section-iluminacion">
-        <div class="section-header"><h2>Sonido e Iluminación</h2></div>
-        <p class="section-note" style="display:block;">El sonido e iluminación básica siempre se incluye en los planes.</p>
+        <div class="section-header"><h2>Audio e Iluminación</h2></div>
         <div class="items-grid" id="grid-iluminacion"></div>
       </div>
     </section>
@@ -135,9 +152,7 @@
       </div>
       <button class="btn-secondary btn-sm" id="btn-clear-plans">Limpiar planes</button>
     </div>
-    <div class="plan-builder" id="plan-builder">
-      <!-- rendered by JS -->
-    </div>
+    <div class="plan-builder" id="plan-builder"></div>
   </section>
 
   <!-- QUOTE OUTPUT -->
